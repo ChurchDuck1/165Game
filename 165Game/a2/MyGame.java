@@ -42,8 +42,6 @@ public class MyGame extends VariableFrameRateGame
 	private GameObject pyramid1, pyramid2, pyramid3;
 	private TextureImage pyramid1tx, pyramid2tx, pyramid3tx;
 
-	private ShakeSinkController shakeSink1, shakeSink2, shakeSink3;
-
 	//home stuff
 	private GameObject home;
 	private ObjShape homeS;
@@ -99,7 +97,8 @@ public class MyGame extends VariableFrameRateGame
 
 	private GameObject[] wallPics = new GameObject[3];
 
-
+	//game stuff
+	private boolean gameStart = false;
 	public MyGame() { super(); }
 
 	public static void main(String[] args)
@@ -150,42 +149,29 @@ public class MyGame extends VariableFrameRateGame
 
 		//build ground
 		ground = new GameObject(GameObject.root(), groundS, groundTx);
-		initialTranslation = (new Matrix4f()).translation(0f, 0f, 0f);
+		initialTranslation = (new Matrix4f()).translation(0f, -8f, 0f);
 		initialScale = (new Matrix4f()).scaling(40.0f, 1.0f, 40.0f);
 		ground.setLocalTranslation(initialTranslation);
 		ground.setLocalScale(initialScale);
 
 		//build pyramids
 		pyramid1 = new GameObject(GameObject.root(), pyramidS, pyramid1tx);
-		initialTranslation = (new Matrix4f()).translation(-15f, 2.5f, -20f);
+		initialTranslation = (new Matrix4f()).translation(-15f, -8.5f, -20f);
 		initialScale = (new Matrix4f()).scaling(2.0f);
 		pyramid1.setLocalTranslation(initialTranslation);
 		pyramid1.setLocalScale(initialScale);
 
 		pyramid2 = new GameObject(GameObject.root(), pyramidS, pyramid2tx);
-		initialTranslation = (new Matrix4f()).translation(20f, 2.5f, 0f);
+		initialTranslation = (new Matrix4f()).translation(20f, -8.5f, 0f);
 		initialScale = (new Matrix4f()).scaling(2.0f);
 		pyramid2.setLocalTranslation(initialTranslation);
 		pyramid2.setLocalScale(initialScale);
 
 		pyramid3 = new GameObject(GameObject.root(), pyramidS, pyramid3tx);
-		initialTranslation = (new Matrix4f()).translation(25f, 2.5f, 25f);
+		initialTranslation = (new Matrix4f()).translation(25f, -8.5f, 25f);
 		initialScale = (new Matrix4f()).scaling(2.0f);
 		pyramid3.setLocalTranslation(initialTranslation);
 		pyramid3.setLocalScale(initialScale);
-
-		//shake and sink controller for pyramids
-		shakeSink1 = new ShakeSinkController();
-		shakeSink2 = new ShakeSinkController();
-		shakeSink3 = new ShakeSinkController();
-
-		shakeSink1.addTarget(pyramid1);
-		shakeSink2.addTarget(pyramid2);
-		shakeSink3.addTarget(pyramid3);
-
-		engine.getSceneGraph().addNodeController(shakeSink1);
-		engine.getSceneGraph().addNodeController(shakeSink2);
-		engine.getSceneGraph().addNodeController(shakeSink3);
 
 		//world axes
 		float axisLength = 100.0f;
@@ -491,10 +477,6 @@ public class MyGame extends VariableFrameRateGame
 
 
 		photosOnDolphin.add(photo);
-		pyramidPic[bestIndex] = true;
-		if (bestIndex == 0) shakeSink1.enable();
-		if (bestIndex == 1) shakeSink2.enable();
-		if (bestIndex == 2) shakeSink3.enable();
 		score++;
 
 		statusMsg = "Picture taken! Score: " + score;
@@ -552,6 +534,7 @@ public class MyGame extends VariableFrameRateGame
 
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			orbitController.orbitAzimuth(dir * 90.0f * time);
 		}
 	}
@@ -563,6 +546,7 @@ public class MyGame extends VariableFrameRateGame
 
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			orbitController.orbitElevation(dir * 60.0f * time);
 		}
 	}
@@ -574,6 +558,7 @@ public class MyGame extends VariableFrameRateGame
 
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			orbitController.zoom(dir * 4.0f * time);
 		}
 	}
@@ -585,6 +570,7 @@ public class MyGame extends VariableFrameRateGame
 
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			overheadManualPan = true;
 			overheadX += dir * overheadPanSpeed * time;
 		}
@@ -598,6 +584,7 @@ public class MyGame extends VariableFrameRateGame
 
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			overheadManualPan = true;
 			overheadZ += dir * overheadPanSpeed * time;
 		}
@@ -610,6 +597,7 @@ public class MyGame extends VariableFrameRateGame
 
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			overheadHeight += dir * overheadZoomSpeed * time;
 
 			if (overheadHeight < 10.0f) overheadHeight = 10.0f;
@@ -628,6 +616,7 @@ public class MyGame extends VariableFrameRateGame
 	private class FwdAction extends AbstractInputAction {
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			float dist = moveSpeed * time;
 	
 			//Dolphin movement
@@ -640,6 +629,7 @@ public class MyGame extends VariableFrameRateGame
 	private class BwdAction extends AbstractInputAction {
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			float dist = moveSpeed * time;
 	
 			//Dolphin movement
@@ -660,6 +650,7 @@ public class MyGame extends VariableFrameRateGame
 	
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			float amount = dir * camTurnSpeed;
 	
 			//dolphin
@@ -670,6 +661,7 @@ public class MyGame extends VariableFrameRateGame
 	private class GamepadMoveAction extends AbstractInputAction {
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			float val = e.getValue();
 			if (Math.abs(val) < 0.15f) return;
 	
@@ -685,11 +677,21 @@ public class MyGame extends VariableFrameRateGame
 	private class GamepadYawAction extends AbstractInputAction {
 		@Override
 		public void performAction(float time, Event e) {
+			if (!gameStart) return;
 			float val = e.getValue();
 			if (Math.abs(val) < 0.15f) return;
 	
 			float amt = -val * camTurnSpeed;
 			dol.globalYaw(amt);
+		}
+	}
+
+	//game control functions
+	private class StartGameControll extends AbstractInputAction {
+		@Override
+		public void performAction(float time, Event e) {
+			gameStart = true;
+			System.out.println("Game has started!");
 		}
 	}
 
@@ -736,6 +738,12 @@ public class MyGame extends VariableFrameRateGame
 			new ToggleAxesAction(),
 			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 
+		// ----- Keyboard Game Control -----
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.RETURN,
+			new StartGameControll(),
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
+		
 		// ----- Keyboard orbit cam control -----
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.LEFT,
@@ -844,5 +852,6 @@ public class MyGame extends VariableFrameRateGame
 			net.java.games.input.Component.Identifier.Axis.RX,
 			new GamepadYawAction(),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		
 	}
 }
