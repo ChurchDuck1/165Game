@@ -9,7 +9,6 @@ import tage.ObjShape;
 import tage.Camera;
 import tage.CameraOrbit3D;
 import tage.input.InputManager;
-import tage.input.action.AbstractInputAction;
 import tage.nodeControllers.RotationController;
 import tage.nodeControllers.ShakeSinkController;
 import tage.Viewport;
@@ -19,7 +18,6 @@ import java.lang.Math;
 import java.util.ArrayList;
 import org.joml.*;
 
-import net.java.games.input.Event;
 
 
 public class MyGame extends VariableFrameRateGame
@@ -30,7 +28,7 @@ public class MyGame extends VariableFrameRateGame
 	private float elapsTime;
 
 	//dolphin stuff
-	private GameObject dol;
+	GameObject dol;
 	private ObjShape dolS;
 	private TextureImage doltx;
 
@@ -41,8 +39,6 @@ public class MyGame extends VariableFrameRateGame
 	private ObjShape pyramidS;
 	private GameObject pyramid1, pyramid2, pyramid3;
 	private TextureImage pyramid1tx, pyramid2tx, pyramid3tx;
-
-	private ShakeSinkController shakeSink1, shakeSink2, shakeSink3;
 
 	//home stuff
 	private GameObject home;
@@ -60,31 +56,31 @@ public class MyGame extends VariableFrameRateGame
 	private TextureImage groundTx;
 
 	//control stuff
-	private float moveSpeed = 5.0f;
+	float moveSpeed = 5.0f;
 
 	//camera stuff
-	private CameraOrbit3D orbitController;
-	private float camTurnSpeed = 0.02f;
+	CameraOrbit3D orbitController;
+	float camTurnSpeed = 0.02f;
 
 	private Camera overheadCam;
-	private float overheadX = 0.0f;
-	private float overheadZ = 0.0f;
-	private float overheadHeight = 35.0f;
+	float overheadX = 0.0f;
+	float overheadZ = 0.0f;
+	float overheadHeight = 35.0f;
 
-	private float overheadPanSpeed = 15.0f;
-	private float overheadZoomSpeed = 20.0f;
+	float overheadPanSpeed = 15.0f;
+	float overheadZoomSpeed = 20.0f;
 
 	private boolean overheadInitialized = false;
-	private boolean overheadManualPan = false;
+	boolean overheadManualPan = false;
 
 	//axis stuff
-	private GameObject xAxis, yAxis, zAxis;
-	private boolean axesVisible = true;
+	GameObject xAxis, yAxis, zAxis;
+	boolean axesVisible = true;
 
 	//photo and crash stuff
 	private boolean gameOver = false;
-	private boolean gameWon = false;
-	private String statusMsg = "";
+	boolean gameWon = false;
+	String statusMsg = "";
 	
 	private ObjShape photoS;
 	
@@ -99,7 +95,8 @@ public class MyGame extends VariableFrameRateGame
 
 	private GameObject[] wallPics = new GameObject[3];
 
-
+	//game stuff
+	boolean gameStart = false;
 	public MyGame() { super(); }
 
 	public static void main(String[] args)
@@ -150,42 +147,29 @@ public class MyGame extends VariableFrameRateGame
 
 		//build ground
 		ground = new GameObject(GameObject.root(), groundS, groundTx);
-		initialTranslation = (new Matrix4f()).translation(0f, 0f, 0f);
+		initialTranslation = (new Matrix4f()).translation(0f, -8f, 0f);
 		initialScale = (new Matrix4f()).scaling(40.0f, 1.0f, 40.0f);
 		ground.setLocalTranslation(initialTranslation);
 		ground.setLocalScale(initialScale);
 
 		//build pyramids
 		pyramid1 = new GameObject(GameObject.root(), pyramidS, pyramid1tx);
-		initialTranslation = (new Matrix4f()).translation(-15f, 2.5f, -20f);
+		initialTranslation = (new Matrix4f()).translation(-15f, -8.5f, -20f);
 		initialScale = (new Matrix4f()).scaling(2.0f);
 		pyramid1.setLocalTranslation(initialTranslation);
 		pyramid1.setLocalScale(initialScale);
 
 		pyramid2 = new GameObject(GameObject.root(), pyramidS, pyramid2tx);
-		initialTranslation = (new Matrix4f()).translation(20f, 2.5f, 0f);
+		initialTranslation = (new Matrix4f()).translation(20f, -8.5f, 0f);
 		initialScale = (new Matrix4f()).scaling(2.0f);
 		pyramid2.setLocalTranslation(initialTranslation);
 		pyramid2.setLocalScale(initialScale);
 
 		pyramid3 = new GameObject(GameObject.root(), pyramidS, pyramid3tx);
-		initialTranslation = (new Matrix4f()).translation(25f, 2.5f, 25f);
+		initialTranslation = (new Matrix4f()).translation(25f, -8.5f, 25f);
 		initialScale = (new Matrix4f()).scaling(2.0f);
 		pyramid3.setLocalTranslation(initialTranslation);
 		pyramid3.setLocalScale(initialScale);
-
-		//shake and sink controller for pyramids
-		shakeSink1 = new ShakeSinkController();
-		shakeSink2 = new ShakeSinkController();
-		shakeSink3 = new ShakeSinkController();
-
-		shakeSink1.addTarget(pyramid1);
-		shakeSink2.addTarget(pyramid2);
-		shakeSink3.addTarget(pyramid3);
-
-		engine.getSceneGraph().addNodeController(shakeSink1);
-		engine.getSceneGraph().addNodeController(shakeSink2);
-		engine.getSceneGraph().addNodeController(shakeSink3);
 
 		//world axes
 		float axisLength = 100.0f;
@@ -425,25 +409,7 @@ public class MyGame extends VariableFrameRateGame
 		overheadCam.lookAt(target);
 	}
 
-	private class ToggleAxesAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-			axesVisible = !axesVisible;
-
-			if (axesVisible) {
-				xAxis.getRenderStates().enableRendering();
-				yAxis.getRenderStates().enableRendering();
-				zAxis.getRenderStates().enableRendering();
-			}
-			else {
-				xAxis.getRenderStates().disableRendering();
-				yAxis.getRenderStates().disableRendering();
-				zAxis.getRenderStates().disableRendering();
-			}
-		}
-	}
-
-	private void tryTakePicture() {
+	void tryTakePicture() {
 
 		GameObject[] pyramids = { pyramid1, pyramid2, pyramid3 };
 		TextureImage[] texs = { pyramid1tx, pyramid2tx, pyramid3tx};
@@ -491,10 +457,6 @@ public class MyGame extends VariableFrameRateGame
 
 
 		photosOnDolphin.add(photo);
-		pyramidPic[bestIndex] = true;
-		if (bestIndex == 0) shakeSink1.enable();
-		if (bestIndex == 1) shakeSink2.enable();
-		if (bestIndex == 2) shakeSink3.enable();
 		score++;
 
 		statusMsg = "Picture taken! Score: " + score;
@@ -506,7 +468,7 @@ public class MyGame extends VariableFrameRateGame
 	}
 
 
-	private void placePhotosOnWalls() {
+	void placePhotosOnWalls() {
 		if (picsPlaced) {
 			statusMsg = "Photos already placed!";
 			return;
@@ -539,203 +501,35 @@ public class MyGame extends VariableFrameRateGame
 		gameOver = true; 
 	}
 
-	private boolean isHome() {
+	boolean isHome() {
 		Vector3f dolPos = dol.getWorldLocation();
 		Vector3f homePos = home.getWorldLocation();
 		return dolPos.distance(homePos) < 5.0f;
 	}
 
-	private class OrbitAzimuthAction extends AbstractInputAction {
-		private float dir;
-
-		public OrbitAzimuthAction(float d) { dir = d; }
-
-		@Override
-		public void performAction(float time, Event e) {
-			orbitController.orbitAzimuth(dir * 90.0f * time);
-		}
-	}
-
-	private class OrbitElevationAction extends AbstractInputAction {
-		private float dir;
-
-		public OrbitElevationAction(float d) { dir = d; }
-
-		@Override
-		public void performAction(float time, Event e) {
-			orbitController.orbitElevation(dir * 60.0f * time);
-		}
-	}
-
-	private class OrbitZoomAction extends AbstractInputAction {
-		private float dir;
-
-		public OrbitZoomAction(float d) { dir = d; }
-
-		@Override
-		public void performAction(float time, Event e) {
-			orbitController.zoom(dir * 4.0f * time);
-		}
-	}
-
-	private class OverheadPanXAction extends AbstractInputAction {
-	private float dir;
-
-	public OverheadPanXAction(float d) { dir = d; }
-
-		@Override
-		public void performAction(float time, Event e) {
-			overheadManualPan = true;
-			overheadX += dir * overheadPanSpeed * time;
-		}
-	}
-
-	//overhad cam
-	private class OverheadPanZAction extends AbstractInputAction {
-		private float dir;
-
-		public OverheadPanZAction(float d) { dir = d; }
-
-		@Override
-		public void performAction(float time, Event e) {
-			overheadManualPan = true;
-			overheadZ += dir * overheadPanSpeed * time;
-		}
-	}
-
-	private class OverheadZoomAction extends AbstractInputAction {
-		private float dir;
-
-		public OverheadZoomAction(float d) { dir = d; }
-
-		@Override
-		public void performAction(float time, Event e) {
-			overheadHeight += dir * overheadZoomSpeed * time;
-
-			if (overheadHeight < 10.0f) overheadHeight = 10.0f;
-			if (overheadHeight > 80.0f) overheadHeight = 80.0f;
-		}
-	}
-
-	private class OverheadRecenterAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-			overheadManualPan = false;
-		}
-	}
-
-	// Controller Movement Functions
-	private class FwdAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-			float dist = moveSpeed * time;
-	
-			//Dolphin movement
-			Vector3f pos = dol.getWorldLocation();
-			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
-			dol.setLocalLocation(new Vector3f(pos).add(new Vector3f(fwd).mul(dist)));
-		}
-	}
-
-	private class BwdAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-			float dist = moveSpeed * time;
-	
-			//Dolphin movement
-			Vector3f pos = dol.getWorldLocation();
-			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
-			dol.setLocalLocation(new Vector3f(pos).add(new Vector3f(fwd).mul(-dist)));
-		}
-	}
-
-	private class KeyboardAction extends AbstractInputAction {
-		private String mode;
-		private float dir;
-	
-		public KeyboardAction(String mode, float dir) {
-			this.mode = mode;
-			this.dir = dir;
-		}
-	
-		@Override
-		public void performAction(float time, Event e) {
-			float amount = dir * camTurnSpeed;
-	
-			//dolphin
-			if (mode.equals("yaw")) dol.globalYaw(amount);
-		}
-	}
-
-	private class GamepadMoveAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-			float val = e.getValue();
-			if (Math.abs(val) < 0.15f) return;
-	
-			float dist = moveSpeed * time * (-val);
-	
-			//dolphin
-			Vector3f pos = dol.getWorldLocation();
-			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
-			dol.setLocalLocation(new Vector3f(pos).add(new Vector3f(fwd).mul(dist)));
-		}
-	}
-
-	private class GamepadYawAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-			float val = e.getValue();
-			if (Math.abs(val) < 0.15f) return;
-	
-			float amt = -val * camTurnSpeed;
-			dol.globalYaw(amt);
-		}
-	}
-
-	//TAKE OUT THE HOP OFF ELEMENT, ONLY MAKE IT SO SPACE PUTS THE PICTURES UP ON WALL
-	private class ToggleRideAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-
-			if (gameWon && isHome()) {
-				placePhotosOnWalls();
-				return;
-        	}
-
-			if (gameWon && !isHome()) {
-				statusMsg = "Return home before trying to place your pictures!";
-			}
-
-			statusMsg = "Take all pyramid photos first, then return home!";
-		}
-	}
-
-	private class TakePictureAction extends AbstractInputAction {
-		@Override
-		public void performAction(float time, Event e) {
-			tryTakePicture();
-		}
-	}
-
-
 	private void setupInputs() {
 		InputManager im = engine.getInputManager();
 
 		//camera controls
-		OrbitAzimuthAction leftAction = new OrbitAzimuthAction(-1.0f);
-		OrbitAzimuthAction rightAction = new OrbitAzimuthAction(1.0f);
-		OrbitElevationAction upAction = new OrbitElevationAction(1.0f);
-		OrbitElevationAction downAction = new OrbitElevationAction(-1.0f);
-		OrbitZoomAction zoomInAction = new OrbitZoomAction(-1.0f);
-		OrbitZoomAction zoomOutAction = new OrbitZoomAction(1.0f);
+		OrbitAzimuthAction leftAction = new OrbitAzimuthAction(this, -1.0f);
+		OrbitAzimuthAction rightAction = new OrbitAzimuthAction(this, 1.0f);
+		OrbitElevationAction upAction = new OrbitElevationAction(this, 1.0f);
+		OrbitElevationAction downAction = new OrbitElevationAction(this, -1.0f);
+		OrbitZoomAction zoomInAction = new OrbitZoomAction(this, -1.0f);
+		OrbitZoomAction zoomOutAction = new OrbitZoomAction(this, 1.0f);
 
 		// ----- Keyboard toggle for axis visibility -----
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.X,
-			new ToggleAxesAction(),
+			new ToggleAxesAction(this),
 			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 
+		// ----- Keyboard Game Control -----
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.RETURN,
+			new StartGameControll(this),
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
+		
 		// ----- Keyboard orbit cam control -----
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.LEFT,
@@ -770,79 +564,80 @@ public class MyGame extends VariableFrameRateGame
 		// ----- Keyboard overhead cam control -----
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.J,
-			new OverheadPanXAction(-1f),
+			new OverheadPanXAction(this, -1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.L,
-			new OverheadPanXAction(1f),
+			new OverheadPanXAction(this, 1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.I,
-			new OverheadPanZAction(-1f),
+			new OverheadPanZAction(this, -1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.K,
-			new OverheadPanZAction(1f),
+			new OverheadPanZAction(this, 1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.U,
-			new OverheadZoomAction(-1f),
+			new OverheadZoomAction(this, -1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.O,
-			new OverheadZoomAction(1f),
+			new OverheadZoomAction(this, 1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.H,
-			new OverheadRecenterAction(),
+			new OverheadRecenterAction(this),
 			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 
 		// ----- Keyboard Dolphin Movement -----
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.W,
-			new FwdAction(), 
+			new FwdAction(this),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.S,
-			new BwdAction(), 
+			new BwdAction(this),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.A,
-			new KeyboardAction("yaw", 1f),
+			new KeyboardAction(this, "yaw", 1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.D,
-			new KeyboardAction("yaw", -1f),
+			new KeyboardAction(this, "yaw", -1f),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.SPACE,
-			new ToggleRideAction(),
+			new ToggleRideAction(this),
 			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.P,
-			new TakePictureAction(),
+			new TakePictureAction(this),
 			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 
 		// ----- Gamepad Dolphin Movement -----
 		im.associateActionWithAllGamepads(
 			net.java.games.input.Component.Identifier.Axis.RY,
-			new GamepadMoveAction(),
+			new GamepadMoveAction(this),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllGamepads(
 			net.java.games.input.Component.Identifier.Axis.RX,
-			new GamepadYawAction(),
+			new GamepadYawAction(this),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		
 	}
 }
