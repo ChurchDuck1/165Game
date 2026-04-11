@@ -14,8 +14,11 @@ import tage.nodeControllers.RotationController;
 import tage.nodeControllers.ShakeSinkController;
 import tage.Viewport;
 import tage.shapes.*;
+import tage.networking.IGameConnection.ProtocolType;
 
 import java.lang.Math;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import org.joml.*;
 
@@ -33,6 +36,17 @@ public class MyGame extends VariableFrameRateGame
 	private GameObject dol;
 	private ObjShape dolS;
 	private TextureImage doltx;
+
+	//ghost (networking) stuff
+	private GhostManager gm;
+	private ObjShape ghostS;
+	private TextureImage ghostTx;
+	private ProtocolClient protClient;
+	private boolean isConnected = false;
+	private boolean twoPlayer = false;
+	private String serverAddress = "localhost";
+	private int serverPort = 5000;
+	private ProtocolType serverProtocol = ProtocolType.UDP;
 
 	//light stuff
 	private Light light1, p1Light, p2Light, p3Light, homeLight;
@@ -99,10 +113,38 @@ public class MyGame extends VariableFrameRateGame
 
 	//game stuff
 	private boolean gameStart = false;
-	public MyGame() { super(); }
+
+	public MyGame(String serverAddr, int sPort, String protocol)
+	{
+		super();
+		gm = new GhostManager(this);
+		this.serverAddress = serverAddr;
+		this.serverPort = sPort;
+		if (protocol.toUpperCase().compareTo("TCP") == 0)
+			this.serverProtocol = ProtocolType.TCP;
+		else
+			this.serverProtocol = ProtocolType.UDP;
+	}
+
+	public MyGame() 
+	{ 
+		super();
+		gm = new GhostManager(this);
+	}
 
 	public static void main(String[] args)
-	{	MyGame game = new MyGame();
+	{	
+		MyGame game;
+		if (args.length >= 3)
+		{
+			// Networking parameters provided: serverAddress, serverPort, protocol
+			game = new MyGame(args[0], Integer.parseInt(args[1]), args[2]);
+		}
+		else
+		{
+			// Default constructor (no networking)
+			game = new MyGame();
+		}
 		engine = new Engine(game);
 		engine.initializeSystem();
 		game.buildGame();
@@ -117,6 +159,7 @@ public class MyGame extends VariableFrameRateGame
 		homeS = new Home();
 		groundS = new Plane();
 		homeMarkerS = new ManualPyramid();
+		ghostS = new ImportedModel("dolphinHighPoly.obj");  // Use same model as player
 	}
 
 	@Override
@@ -134,6 +177,9 @@ public class MyGame extends VariableFrameRateGame
 
 		//load ground stuff
 		groundTx = new TextureImage("sand.jpg");
+
+		//load ghost stuff
+		ghostTx = new TextureImage("Dolphin_HighPolyUV.jpg");  // Same texture as player
 	}
 
 	@Override
@@ -278,6 +324,7 @@ public class MyGame extends VariableFrameRateGame
 		orbitController = new CameraOrbit3D(c, dol);
 
 		setupInputs();
+		setupNetworking();
 	}
 
 	@Override
@@ -295,6 +342,9 @@ public class MyGame extends VariableFrameRateGame
 		}
 
 		engine.getInputManager().update(elapsTime);
+
+		// Process networking (receive packets from server/clients)
+		processNetworking(elapsTime);
 
 		//bind dolphin to ground plane
 		Vector3f dolLoc = dol.getLocalLocation();
@@ -623,6 +673,12 @@ public class MyGame extends VariableFrameRateGame
 			Vector3f pos = dol.getWorldLocation();
 			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
 			dol.setLocalLocation(new Vector3f(pos).add(new Vector3f(fwd).mul(dist)));
+			
+			// Send move message to other players
+			if (protClient != null && isConnected)
+			{
+				protClient.sendMoveMessage(dol.getWorldLocation());
+			}
 		}
 	}
 
@@ -636,6 +692,12 @@ public class MyGame extends VariableFrameRateGame
 			Vector3f pos = dol.getWorldLocation();
 			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
 			dol.setLocalLocation(new Vector3f(pos).add(new Vector3f(fwd).mul(-dist)));
+			
+			// Send move message to other players
+			if (protClient != null && isConnected)
+			{
+				protClient.sendMoveMessage(dol.getWorldLocation());
+			}
 		}
 	}
 
@@ -671,6 +733,12 @@ public class MyGame extends VariableFrameRateGame
 			Vector3f pos = dol.getWorldLocation();
 			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
 			dol.setLocalLocation(new Vector3f(pos).add(new Vector3f(fwd).mul(dist)));
+			
+			// Send move message to other players
+			if (protClient != null && isConnected)
+			{
+				protClient.sendMoveMessage(dol.getWorldLocation());
+			}
 		}
 	}
 
@@ -691,7 +759,19 @@ public class MyGame extends VariableFrameRateGame
 		@Override
 		public void performAction(float time, Event e) {
 			gameStart = true;
-			System.out.println("Game has started!");
+			System.out.println("[MyGame] Game starting - isConnected: " + isConnected + " | ghostCount: " + gm.getGhostCount());
+			
+			// Check if a second player is connected
+			if (isConnected && gm.getGhostCount() > 0)
+			{
+				twoPlayer = true;
+				System.out.println("[MyGame] Two-player game started!");
+			}
+			else
+			{
+				twoPlayer = false;
+				System.out.println("[MyGame] Single-player game started!");
+			}
 		}
 	}
 
@@ -720,6 +800,45 @@ public class MyGame extends VariableFrameRateGame
 		}
 	}
 
+	private void setupNetworking()
+	{
+		isConnected = false;
+		try
+		{
+			System.out.println("[MyGame] Setting up networking - connecting to " + serverAddress + ":" + serverPort);
+			protClient = new ProtocolClient(InetAddress.getByName(serverAddress), 
+											 serverPort, serverProtocol, this);
+		}
+		catch (UnknownHostException e)
+		{
+			System.out.println("[MyGame] Unknown host: " + serverAddress);
+			e.printStackTrace();
+		}
+		catch (java.io.IOException e)
+		{
+			System.out.println("[MyGame] IOException setting up networking");
+			e.printStackTrace();
+		}
+
+		if (protClient == null)
+		{
+			System.out.println("[MyGame] ERROR: missing protocol host");
+		}
+		else
+		{
+			System.out.println("[MyGame] Network client created, sending join message");
+			protClient.sendJoinMessage();
+		}
+	}
+
+	private void processNetworking(float elapsedTime)
+	{
+		// Process packets received by the client from the server
+		if (protClient != null)
+		{
+			protClient.processPackets();
+		}
+	}
 
 	private void setupInputs() {
 		InputManager im = engine.getInputManager();
@@ -853,5 +972,51 @@ public class MyGame extends VariableFrameRateGame
 			new GamepadYawAction(),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 		
+	}
+
+	// Networking accessors and network-related methods
+	public void setIsConnected(boolean connected)
+	{
+		this.isConnected = connected;
+	}
+
+	public boolean getIsConnected()
+	{
+		return isConnected;
+	}
+
+	public ObjShape getGhostShape()
+	{
+		return ghostS;
+	}
+
+	public TextureImage getGhostTexture()
+	{
+		return ghostTx;
+	}
+
+	public GhostManager getGhostManager()
+	{
+		return gm;
+	}
+
+	public Engine getEngine()
+	{
+		return engine;
+	}
+
+	public Vector3f getPlayerPosition()
+	{
+		return dol.getWorldLocation();
+	}
+
+	public boolean isTwoPlayer()
+	{
+		return twoPlayer;
+	}
+
+	public int getGhostCount()
+	{
+		return gm.getGhostCount();
 	}
 }
