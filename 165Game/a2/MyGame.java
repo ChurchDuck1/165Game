@@ -1019,4 +1019,17 @@ public class MyGame extends VariableFrameRateGame
 	{
 		return gm.getGhostCount();
 	}
+
+	@Override
+	public void shutdown()
+	{
+		super.shutdown();
+		
+		// Send bye message when game exits to notify other players
+		if (protClient != null && isConnected)
+		{
+			System.out.println("[MyGame] Sending bye message before shutdown");
+			protClient.sendByeMessage();
+		}
+	}
 }
