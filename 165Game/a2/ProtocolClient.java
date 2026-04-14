@@ -37,6 +37,7 @@ public class ProtocolClient extends GameConnectionClient {
 		try {
 			String message = new String("create," + id.toString());
 			message += "," + pos.x + "," + pos.y + "," + pos.z;
+			message += "," + game.getSelectedAvatar();
 			sentCreate = true;
 			sendPacket(message);
 		}
@@ -71,7 +72,9 @@ public class ProtocolClient extends GameConnectionClient {
 	//send a details-for message to the server for a specific remote player
 	public void sendDetailsForMessage(UUID remId) {
 		try {
+			Vector3f pos = game.getPlayerPosition();
 			String message = new String("dsfr," + id.toString() + "," + remId.toString());
+			message += "," + pos.x + "," + pos.y + "," + pos.z;
 			sendPacket(message);
 		}
 		catch (IOException e) {
@@ -113,7 +116,7 @@ public class ProtocolClient extends GameConnectionClient {
 
 			//handle incoming create message from other players
 			if(messageTokens[0].compareTo("create") == 0) {
-				if(messageTokens.length >= 5) {
+				if(messageTokens.length >= 6) {
 					try {
 						UUID ghostID = UUID.fromString(messageTokens[1]);
 		
@@ -126,12 +129,14 @@ public class ProtocolClient extends GameConnectionClient {
 							Float.parseFloat(messageTokens[2]),
 							Float.parseFloat(messageTokens[3]),
 							Float.parseFloat(messageTokens[4]));
+						
+						int avatar = Integer.parseInt(messageTokens[5]);
 
 						if (ghostManager.hasGhost(ghostID)) {
-							ghostManager.updateGhostAvatar(ghostID, ghostPosition);
+							ghostManager.updateGhostAvatar(ghostID, ghostPosition, avatar);
 						}
 						else {
-							ghostManager.createGhost(ghostID, ghostPosition);
+							ghostManager.createGhost(ghostID, ghostPosition, avatar);
 						}
 					}
 					catch (NumberFormatException | IOException e) {
@@ -143,7 +148,7 @@ public class ProtocolClient extends GameConnectionClient {
 
 			//handle dsfr (details for) message
 			if(messageTokens[0].compareTo("dsfr") == 0) {
-				if(messageTokens.length >= 5) {
+				if(messageTokens.length >= 6) {
 					try {
 						UUID ghostID = UUID.fromString(messageTokens[1]);
 						
@@ -156,12 +161,14 @@ public class ProtocolClient extends GameConnectionClient {
 							Float.parseFloat(messageTokens[2]),
 							Float.parseFloat(messageTokens[3]),
 							Float.parseFloat(messageTokens[4]));
+						
+						int avatar = Integer.parseInt(messageTokens[5]);
 
 						if (ghostManager.hasGhost(ghostID)) {
-							ghostManager.updateGhostAvatar(ghostID, ghostPosition);
+							ghostManager.updateGhostAvatar(ghostID, ghostPosition, avatar);
 						}
 						else {
-							ghostManager.createGhost(ghostID, ghostPosition);
+							ghostManager.createGhost(ghostID, ghostPosition, avatar);
 						}
 					}
 					catch (NumberFormatException | IOException e) {
