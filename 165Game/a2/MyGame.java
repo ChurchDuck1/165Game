@@ -70,6 +70,7 @@ public class MyGame extends VariableFrameRateGame
 	private ObjShape groundS;
 	private GameObject ground;
 	private TextureImage groundTx;
+	private TextureImage groundHeightMap;
 
 	//control stuff
 	private float moveSpeed = 5.0f;
@@ -112,7 +113,10 @@ public class MyGame extends VariableFrameRateGame
 	private GameObject[] wallPics = new GameObject[3];
 
 	//game stuff
-	private boolean gameStart = false;
+	private boolean gameStart = true;
+
+	//skybox stuff
+	private int skyboxTex;
 
 	public MyGame(String serverAddr, int sPort, String protocol)
 	{
@@ -155,7 +159,7 @@ public class MyGame extends VariableFrameRateGame
 		pyramidS = new ManualPyramid();
 		photoS = new Plane();
 		homeS = new Home();
-		groundS = new Plane();
+		groundS = new TerrainPlane(1000);
 		homeMarkerS = new ManualPyramid();
 		ghostS = new ImportedModel("dolphinHighPoly.obj");  //TODO: change when we have multiple player models
 	}
@@ -175,9 +179,19 @@ public class MyGame extends VariableFrameRateGame
 
 		//load ground stuff
 		groundTx = new TextureImage("sand.jpg");
+		groundHeightMap = new TextureImage("hills.jpg");
 
 		//load ghost stuff
 		ghostTx = new TextureImage("Dolphin_HighPolyUV.jpg");  //TODO: change when we have multiple player modelsS
+	}
+
+	@Override
+	public void loadSkyBoxes()
+	{
+		skyboxTex = (engine.getSceneGraph()).loadCubeMap("fluffyClouds");
+
+		(engine.getSceneGraph()).setActiveSkyBoxTexture(skyboxTex);
+		(engine.getSceneGraph()).setSkyBoxEnabled(true);
 	}
 
 	@Override
@@ -194,9 +208,11 @@ public class MyGame extends VariableFrameRateGame
 		//build ground
 		ground = new GameObject(GameObject.root(), groundS, groundTx);
 		initialTranslation = (new Matrix4f()).translation(0f, -8f, 0f);
-		initialScale = (new Matrix4f()).scaling(40.0f, 1.0f, 40.0f);
+		initialScale = (new Matrix4f()).scaling(40.0f, 6.0f, 40.0f);
 		ground.setLocalTranslation(initialTranslation);
 		ground.setLocalScale(initialScale);
+		ground.setIsTerrain(true);
+		ground.setHeightMap(groundHeightMap);
 
 		//build pyramids
 		pyramid1 = new GameObject(GameObject.root(), pyramidS, pyramid1tx);
@@ -346,8 +362,8 @@ public class MyGame extends VariableFrameRateGame
 
 		//bind dolphin to ground plane
 		Vector3f dolLoc = dol.getLocalLocation();
-		dolLoc.y = 1.0f;
-		dol.setLocalLocation(dolLoc);
+		float terrainHeight = ground.getHeight(dolLoc.x, dolLoc.z);
+		dol.setLocalLocation(new Vector3f(dolLoc.x, terrainHeight + 1.0f, dolLoc.z));
 
 		if (gameWon && !picsPlaced) {
 			statusMsg = "Press SPACE to hang your photos!";
