@@ -36,6 +36,10 @@ public class MyGame extends VariableFrameRateGame
 	private GameObject dol;
 	private ObjShape dolS;
 	private TextureImage doltx;
+	private ObjShape witchS;
+	private int selectedAvatar = 0; //0 = dolphin, 1 = witch
+	private float avatarGroundOffset = 1.0f;
+	private float avatarCameraOffset = 0.0f;
 
 	//networking stuff
 	private GhostManager gm;
@@ -71,6 +75,10 @@ public class MyGame extends VariableFrameRateGame
 	private GameObject ground;
 	private TextureImage groundTx;
 	private TextureImage groundHeightMap;
+
+	//broom object
+	private ObjShape broomS;	
+	private GameObject broom;
 
 	//control stuff
 	private float moveSpeed = 5.0f;
@@ -113,7 +121,7 @@ public class MyGame extends VariableFrameRateGame
 	private GameObject[] wallPics = new GameObject[3];
 
 	//game stuff
-	private boolean gameStart = true;
+	private boolean gameStart = false;
 
 	//skybox stuff
 	private int skyboxTex;
@@ -156,10 +164,12 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void loadShapes()
 	{	dolS = new ImportedModel("dolphinHighPoly.obj");
+		witchS = new ImportedModel("witchModel.obj");
 		pyramidS = new ManualPyramid();
 		photoS = new Plane();
 		homeS = new Home();
 		groundS = new TerrainPlane(1000);
+		broomS = new ImportedModel("broomModel.obj");
 		homeMarkerS = new ManualPyramid();
 		ghostS = new ImportedModel("dolphinHighPoly.obj");  //TODO: change when we have multiple player models
 	}
@@ -199,11 +209,12 @@ public class MyGame extends VariableFrameRateGame
 	{	Matrix4f initialTranslation, initialScale;
 
 		// build dolphin in the center of the window
-		dol = new GameObject(GameObject.root(), dolS, doltx);
+		ObjShape startShape = (selectedAvatar == 1) ? witchS : dolS;
+		TextureImage startTexture = (selectedAvatar == 1) ? null : doltx;
+		dol = new GameObject(GameObject.root(), startShape, startTexture);
 		initialTranslation = (new Matrix4f()).translation(0f, 1.0f, 0f);
-		initialScale = (new Matrix4f()).scaling(3.0f);
 		dol.setLocalTranslation(initialTranslation);
-		dol.setLocalScale(initialScale);
+		applyAvatarTransform();
 
 		//build ground
 		ground = new GameObject(GameObject.root(), groundS, groundTx);
@@ -256,6 +267,11 @@ public class MyGame extends VariableFrameRateGame
 		home.setLocalTranslation(new Matrix4f().translation(0f, 3.1f, -10f)); 
 		home.setLocalScale(new Matrix4f().scaling(0.5f));
 		home.getRenderStates().setColor(new Vector3f(1f, 1f, 1f));
+
+		//broom object in the world
+		broom = new GameObject(GameObject.root(), broomS, null);
+		broom.setLocalTranslation(new Matrix4f().translation(-8f, 1.0f, 10f));
+		broom.setLocalScale(new Matrix4f().scaling(0.5f));
 
 		//home marker build
 		homeMarkerTop = new GameObject(home, homeMarkerS, homeMarkerTx);
@@ -363,7 +379,7 @@ public class MyGame extends VariableFrameRateGame
 		//bind dolphin to ground plane
 		Vector3f dolLoc = dol.getLocalLocation();
 		float terrainHeight = ground.getHeight(dolLoc.x, dolLoc.z);
-		dol.setLocalLocation(new Vector3f(dolLoc.x, terrainHeight + 1.0f, dolLoc.z));
+		dol.setLocalLocation(new Vector3f(dolLoc.x, terrainHeight + avatarGroundOffset, dolLoc.z));
 
 		if (gameWon && !picsPlaced) {
 			statusMsg = "Press SPACE to hang your photos!";
@@ -371,6 +387,11 @@ public class MyGame extends VariableFrameRateGame
 		
 		Vector3f dolPos = dol.getWorldLocation();
 		orbitController.updateCameraPosition();
+
+		// Adjust camera height to compensate for avatar offset
+		Camera c = engine.getRenderSystem().getViewport("LEFT").getCamera();
+		Vector3f camLoc = c.getLocation();
+		c.setLocation(new Vector3f(camLoc.x, camLoc.y + avatarCameraOffset, camLoc.z));
 
 		if (!overheadInitialized) {
 			overheadX = dolPos.x;
@@ -473,6 +494,37 @@ public class MyGame extends VariableFrameRateGame
 
 		overheadCam.setLocation(camPos);
 		overheadCam.lookAt(target);
+	}
+
+	private void applySelectedAvatar()
+	{
+		if (dol == null) return;
+		if (selectedAvatar == 1) {
+			dol.setShape(witchS);
+			dol.setTextureImage(homeTx);
+			statusMsg = "Witch selected";
+		}
+		else {
+			dol.setShape(dolS);
+			dol.setTextureImage(doltx);
+			statusMsg = "Dolphin selected";
+		}
+		applyAvatarTransform();
+	}
+
+	private void applyAvatarTransform()
+	{
+		if (dol == null) return;
+		
+		if (selectedAvatar == 1) {
+			// Witch: 0.4f scale, translate down by 2.5
+			dol.setLocalScale(new Matrix4f().scaling(0.4f));
+		}
+		else {
+			// Dolphin: normal 3.0f scale
+			dol.setLocalScale(new Matrix4f().scaling(3.0f));
+			dol.setLocalRotation(new Matrix4f());
+		}
 	}
 
 	private class ToggleAxesAction extends AbstractInputAction {
@@ -676,6 +728,21 @@ public class MyGame extends VariableFrameRateGame
 		}
 	}
 
+	private class SelectAvatarAction extends AbstractInputAction {
+		private int avatarIndex;
+
+		public SelectAvatarAction(int index) {
+			avatarIndex = index;
+		}
+
+		@Override
+		public void performAction(float time, Event e) {
+			if (gameStart) return;
+			selectedAvatar = avatarIndex;
+			applySelectedAvatar();
+		}
+	}
+
 	// Controller Movement Functions
 	private class FwdAction extends AbstractInputAction {
 		@Override
@@ -862,6 +929,16 @@ public class MyGame extends VariableFrameRateGame
 		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.RETURN,
 			new StartGameControll(),
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key._1,
+			new SelectAvatarAction(0),
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key._2,
+			new SelectAvatarAction(1),
 			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 		
 		// ----- Keyboard orbit cam control -----
