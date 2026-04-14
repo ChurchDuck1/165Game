@@ -16,12 +16,22 @@ public class GhostManager {
 
 
 	//creates ghost avatar with specified ID at the given position
-	public void createGhost(UUID id, Vector3f p) throws IOException {
-		ObjShape s = game.getGhostShape();
-		TextureImage t = game.getGhostTexture();
+	public void createGhost(UUID id, Vector3f p, int avatar) throws IOException {
+		ObjShape s;
+		TextureImage t;
+		
+		if (avatar == 1) { //witch
+			s = game.getWitchShape();
+			t = game.getWitchTexture();
+		} else { //dolphin
+			s = game.getDolphinShape();
+			t = game.getDolphinTexture();
+		}
 
 		GhostAvatar newAvatar = new GhostAvatar(id, s, t, p);
-		Matrix4f initialScale = (new Matrix4f()).scaling(GHOST_SCALE);
+		newAvatar.setAvatar(avatar);
+		float scale = (avatar == 1) ? 0.4f : 3.0f;
+		Matrix4f initialScale = (new Matrix4f()).scaling(scale);
 		newAvatar.setLocalScale(initialScale);
 
 		ghostAvatars.add(newAvatar);
@@ -57,6 +67,34 @@ public class GhostManager {
 		GhostAvatar ghostAvatar = findAvatar(id);
 		if (ghostAvatar != null) {
 			ghostAvatar.setLocalLocation(position);
+			return true;
+		}
+		System.out.println("unable to find ghost in list");
+		return false;
+	}
+
+    //update position and avatar of ghost avatar by ID
+	public boolean updateGhostAvatar(UUID id, Vector3f position, int avatar) {
+		GhostAvatar ghostAvatar = findAvatar(id);
+		if (ghostAvatar != null) {
+			ghostAvatar.setLocalLocation(position);
+			if (ghostAvatar.getAvatar() != avatar) {
+				ghostAvatar.setAvatar(avatar);
+				ObjShape s;
+				TextureImage t;
+				if (avatar == 1) { // witch
+					s = game.getWitchShape();
+					t = game.getWitchTexture();
+				} else { // dolphin
+					s = game.getDolphinShape();
+					t = game.getDolphinTexture();
+				}
+				ghostAvatar.setShape(s);
+				ghostAvatar.setTextureImage(t);
+				float scale = (avatar == 1) ? 0.4f : 3.0f;
+				Matrix4f newScale = (new Matrix4f()).scaling(scale);
+				ghostAvatar.setLocalScale(newScale);
+			}
 			return true;
 		}
 		System.out.println("unable to find ghost in list");

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.UUID;
 import java.util.Vector;
+import java.util.HashMap;
 import tage.networking.server.GameConnectionServer;
 import tage.networking.server.IClientInfo;
 import tage.networking.IGameConnection.ProtocolType;
@@ -15,6 +16,7 @@ import tage.networking.IGameConnection.ProtocolType;
 public class GameServerUDP extends GameConnectionServer<UUID>
 {
 	private Vector<UUID> connectedClients = new Vector<UUID>();
+	private HashMap<UUID, Integer> clientAvatars = new HashMap<UUID, Integer>();
 
 	public GameServerUDP(int localPort) throws IOException {
 		super(localPort, ProtocolType.UDP);
@@ -45,12 +47,14 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 
 			//case where server receives a CREATE message
 			if(messageTokens[0].compareTo("create") == 0) {
-				if(messageTokens.length >= 5) {
+				if(messageTokens.length >= 6) {
 					try {
 						UUID clientID = UUID.fromString(messageTokens[1]);
 						String[] pos = {messageTokens[2], messageTokens[3], messageTokens[4]};
-		
-						sendCreateMessages(clientID, pos);
+						int avatar = Integer.parseInt(messageTokens[5]);
+						
+						clientAvatars.put(clientID, avatar);
+						sendCreateMessages(clientID, pos, avatar);
 						
 						sendWantsDetailsMessages(clientID);
 					}
@@ -84,6 +88,7 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 					
 					removeClient(clientID);
 					connectedClients.remove(clientID);
+					clientAvatars.remove(clientID);
 					System.out.println("Client disconnected: " + clientID);
 				}
 				catch (Exception e) {
@@ -136,13 +141,14 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 		}
 	}
 
-	private void sendCreateMessages(UUID clientID, String[] position)
+	private void sendCreateMessages(UUID clientID, String[] position, int avatar)
 	{
 		try {
 			String message = new String("create," + clientID.toString());
 			message += "," + position[0];
 			message += "," + position[1];
 			message += "," + position[2];
+			message += "," + avatar;
 			
 			forwardPacketToAll(message, clientID);
 		}
@@ -193,6 +199,7 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 			message += "," + position[0];
 			message += "," + position[1];
 			message += "," + position[2];
+			message += "," + clientAvatars.get(senderID);
 			
 			sendPacket(message, remoteID);
 		}

@@ -740,6 +740,9 @@ public class MyGame extends VariableFrameRateGame
 			if (gameStart) return;
 			selectedAvatar = avatarIndex;
 			applySelectedAvatar();
+			if (isConnected && protClient != null) {
+				protClient.sendCreateMessage(getPlayerPosition());
+			}
 		}
 	}
 
@@ -1057,9 +1060,14 @@ public class MyGame extends VariableFrameRateGame
 	public boolean getIsConnected() { return isConnected; }
 	public ObjShape getGhostShape() { return ghostS; }
 	public TextureImage getGhostTexture() { return ghostTx; }
+	public ObjShape getDolphinShape() { return dolS; }
+	public TextureImage getDolphinTexture() { return doltx; }
+	public ObjShape getWitchShape() { return witchS; }
+	public TextureImage getWitchTexture() { return homeTx; }
 	public GhostManager getGhostManager() { return gm; }
 	public Engine getEngine() { return engine; }
 	public Vector3f getPlayerPosition() { return dol.getWorldLocation(); }
+	public int getSelectedAvatar() { return selectedAvatar; }
 	public boolean isTwoPlayer() { return twoPlayer; }
 	public int getGhostCount() { return gm.getGhostCount(); }
 
