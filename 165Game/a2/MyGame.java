@@ -71,6 +71,10 @@ public class MyGame extends VariableFrameRateGame
 	private ObjShape broomS;	
 	private GameObject broom;
 
+	//box stuff
+	private ObjShape boxS;
+	private ArrayList<GameObject> spawnedBoxes = new ArrayList<GameObject>();
+
 	//control stuff
 	private float moveSpeed = 15.0f;
 
@@ -147,6 +151,7 @@ public class MyGame extends VariableFrameRateGame
 		houseS = new ImportedModel("house.obj");
 		broomS = new ImportedModel("broomModel.obj");
 		ghostS = new ImportedModel("dolphinHighPoly.obj");  //TODO: change when we have multiple player models
+		boxS = new ImportedModel("box.obj");
 	}
 
 	@Override
@@ -596,6 +601,22 @@ public class MyGame extends VariableFrameRateGame
 		}
 	}
 
+	private class SpawnBoxAction extends AbstractInputAction {
+		@Override
+		public void performAction(float time, Event e) {
+			if (!gameStart) return;
+			// Compute spawn position 3.5 units directly in front of the player
+			Vector3f pos = dol.getWorldLocation();
+			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
+			Vector3f spawnPos = new Vector3f(pos).add(new Vector3f(fwd).mul(3.5f));
+
+			GameObject box = new GameObject(GameObject.root(), boxS, null);
+			box.setLocalLocation(spawnPos);
+			box.setLocalScale(new Matrix4f().scaling(0.5f));
+			spawnedBoxes.add(box);
+		}
+	}
+
 	private void setupNetworking()
 	{
 		isConnected = false;
@@ -685,6 +706,11 @@ public class MyGame extends VariableFrameRateGame
 			net.java.games.input.Component.Identifier.Key.E,
 			zoomOutAction,
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+
+		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.SPACE,
+			new SpawnBoxAction(),
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 
 		// ----- Keyboard overhead cam control -----
 		im.associateActionWithAllKeyboards(
