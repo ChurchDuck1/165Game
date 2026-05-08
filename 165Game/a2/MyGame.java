@@ -18,7 +18,10 @@ import java.lang.Math;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import org.joml.*;
+import tage.physics.PhysicsEngine;
+import tage.physics.PhysicsObject;
 
 import net.java.games.input.Event;
 
@@ -74,6 +77,15 @@ public class MyGame extends VariableFrameRateGame
 	//box stuff
 	private ObjShape boxS;
 	private ArrayList<GameObject> spawnedBoxes = new ArrayList<GameObject>();
+	private ArrayList<PhysicsObject> spawnedBoxPhysics = new ArrayList<PhysicsObject>();
+
+	//physics stuff
+	private PhysicsEngine physicsEngine;
+	private PhysicsObject[] housePhysics = new PhysicsObject[5];
+	private PhysicsObject groundPhysics;
+
+	//score stuff
+	private int score = 0;
 
 	//control stuff
 	private float moveSpeed = 15.0f;
@@ -241,6 +253,40 @@ public class MyGame extends VariableFrameRateGame
 	}
 
 	@Override
+	public void initializePhysicsObjects()
+	{
+		float[] gravity = {0f, -9.8f, 0f};
+		physicsEngine = (engine.getSceneGraph()).getPhysicsEngine();
+		physicsEngine.setGravity(gravity);
+
+		// flat static plane for ground collision - much cheaper than terrain mesh.
+		// the avatar is already manually bound to terrain height each frame,
+		// so a flat plane at ground level is sufficient for box collision.
+		float[] up = {0f, 1f, 0f};
+		Vector3f loc = ground.getWorldLocation();
+		Quaternionf rot = new Quaternionf();
+		(ground.getWorldRotation()).getNormalizedRotation(rot);
+		groundPhysics = (engine.getSceneGraph()).addPhysicsStaticPlane(loc, rot, up, 1.5f);
+		groundPhysics.setBounciness(0.4f);
+		ground.setPhysicsObject(groundPhysics);
+
+		// static box colliders for each house
+		// houses are at y=-16 with scale 0.02f; use a reasonable above-ground half-extent
+		for (int i = 0; i < 5; i++) {
+			loc = houses[i].getWorldLocation();
+			rot = new Quaternionf();
+			(houses[i].getWorldRotation()).getNormalizedRotation(rot);
+			// center the collider above terrain level; half-extents in world units
+			Vector3f colliderLoc = new Vector3f(loc.x, loc.y + 2.0f, loc.z);
+			float[] houseHalfExtents = {6.0f, 4.0f, 6.0f};
+			housePhysics[i] = (engine.getSceneGraph()).addPhysicsBox(
+				0.0f, colliderLoc, rot, houseHalfExtents);
+			housePhysics[i].setBounciness(0.1f);
+			houses[i].setPhysicsObject(housePhysics[i]);
+		}
+	}
+
+	@Override
 	public void initializeLights()
 	{	Light.setGlobalAmbient(0.5f, 0.5f, 0.5f);
 		light1 = new Light();
@@ -312,7 +358,49 @@ public class MyGame extends VariableFrameRateGame
 
 		updateOverheadCamera();
 
-		statusMsg = "Explore the world!";
+		statusMsg = "Score: " + score;
+
+		// tick physics
+		if (gameStart && physicsEngine != null)
+		{
+			physicsEngine.update(elapsTime);
+
+			// sync physics transforms back to graphics objects for active boxes
+			for (int i = 0; i < spawnedBoxes.size(); i++) {
+				PhysicsObject bp = spawnedBoxPhysics.get(i);
+				Vector3f bLoc = bp.getLocation();
+				Matrix4f locMat = new Matrix4f();
+				locMat.set(3,0,bLoc.x); locMat.set(3,1,bLoc.y); locMat.set(3,2,bLoc.z);
+				spawnedBoxes.get(i).setLocalTranslation(locMat);
+				Quaternionf bRot = bp.getRotation();
+				Matrix4f rotMat = new Matrix4f();
+				bRot.get(rotMat);
+				spawnedBoxes.get(i).setLocalRotation(rotMat);
+			}
+
+			// detect collisions and handle box-house hits
+			physicsEngine.detectCollisions();
+			ArrayList<Integer> toRemove = new ArrayList<Integer>();
+			for (int i = 0; i < spawnedBoxes.size(); i++) {
+				PhysicsObject bp = spawnedBoxPhysics.get(i);
+				HashSet<PhysicsObject> hits = bp.getNewlyCollidedSet();
+				for (int h = 0; h < 5; h++) {
+					if (hits.contains(housePhysics[h])) {
+						toRemove.add(i);
+						score++;
+						break;
+					}
+				}
+			}
+			// remove despawned boxes in reverse order to keep indices valid
+			for (int i = toRemove.size() - 1; i >= 0; i--) {
+				int idx = toRemove.get(i);
+				engine.getSceneGraph().removeGameObject(spawnedBoxes.get(idx));
+				physicsEngine.removeObject(spawnedBoxPhysics.get(idx).getUID());
+				spawnedBoxes.remove(idx);
+				spawnedBoxPhysics.remove(idx);
+			}
+		}
 
 		//update huds
 		updateMainHUD();
@@ -320,12 +408,19 @@ public class MyGame extends VariableFrameRateGame
 	}
 
 	//update the main hud
+	private boolean hudDebugPrinted = false;
 	private void updateMainHUD()
 	{
 		Viewport mainVp = engine.getRenderSystem().getViewport("LEFT");
-		int hudX = (int) mainVp.getActualLeft() + 15;
-		int hudY = (int) (mainVp.getActualBottom() - mainVp.getActualHeight());
-		(engine.getHUDmanager()).setHUD1(statusMsg, new Vector3f(1,1,0), hudX, hudY);
+		if (!hudDebugPrinted) {
+			System.out.println("LEFT vp: left=" + mainVp.getActualLeft()
+				+ " bottom=" + mainVp.getActualBottom()
+				+ " width=" + mainVp.getActualWidth()
+				+ " height=" + mainVp.getActualHeight());
+			hudDebugPrinted = true;
+		}
+		// HUD coords are in screen pixels from top-left; use fixed position
+		(engine.getHUDmanager()).setHUD1(statusMsg, new Vector3f(1,1,0), 15, 15);
 	}
 
 	//update overhead hud
@@ -339,8 +434,9 @@ public class MyGame extends VariableFrameRateGame
 			pos.x, pos.y, pos.z
 		);
 
+		// position inside the top-right mini viewport
 		int hudX = (int) topVp.getActualLeft() + 10;
-		int hudY = (int) (topVp.getActualBottom() - topVp.getActualHeight());
+		int hudY = (int) topVp.getActualBottom() + 10;
 
 		(engine.getHUDmanager()).setHUD2(
 			posText,
@@ -613,7 +709,19 @@ public class MyGame extends VariableFrameRateGame
 			GameObject box = new GameObject(GameObject.root(), boxS, null);
 			box.setLocalLocation(spawnPos);
 			box.setLocalScale(new Matrix4f().scaling(0.5f));
+
+			// create a dynamic physics box — half-extents match the 0.5 visual scale
+			Quaternionf rot = new Quaternionf();
+			(box.getWorldRotation()).getNormalizedRotation(rot);
+			float[] halfExtents = {0.5f, 0.5f, 0.5f};
+			PhysicsObject bp = (engine.getSceneGraph()).addPhysicsBox(
+				1.0f, spawnPos, rot, halfExtents);
+			bp.setBounciness(0.4f);
+			bp.disableSleeping();
+			box.setPhysicsObject(bp);
+
 			spawnedBoxes.add(box);
+			spawnedBoxPhysics.add(bp);
 		}
 	}
 
