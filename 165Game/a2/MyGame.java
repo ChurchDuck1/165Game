@@ -35,7 +35,7 @@ public class MyGame extends VariableFrameRateGame
 	private long lastFrameTime, currFrameTime;
 	private float elapsTime;
 
-	// dolphin stuff
+	//dolphin stuff
 	private GameObject dol;
 	private ObjShape dolS;
 	private TextureImage doltx;
@@ -44,7 +44,7 @@ public class MyGame extends VariableFrameRateGame
 	private float avatarGroundOffset = 1.0f;
 	private float avatarCameraOffset = 0.0f;
 
-	// networking stuff
+	//networking stuff
 	private GhostManager gm;
 	private ObjShape ghostS;
 	private TextureImage ghostTx;
@@ -55,44 +55,51 @@ public class MyGame extends VariableFrameRateGame
 	private int serverPort = 5000;
 	private ProtocolType serverProtocol = ProtocolType.UDP;
 
-	// light stuff
+	//light stuff
 	private Light light1, homeLight;
 
-	// home stuff - logical position only, no rendered object
+	//home stuff - logical position only, no rendered object
 	private Vector3f homePosition = new Vector3f(0f, 0f, -10f);
 
-	// ground stuff
+	//ground stuff
 	private ObjShape groundS;
 	private GameObject ground;
 	private TextureImage groundTx;
 	private TextureImage groundHeightMap;
 
-	// house stuff
+	//house stuff
 	private ObjShape houseS;
 	private GameObject[] houses = new GameObject[5];
 	private TextureImage houseTx;
+	private float[][] housePositions = {
+		{  60f,  70f},
+		{ -80f,  40f},
+		{ 100f, -60f},
+		{ -40f, -100f},
+		{  20f,  120f}
+	};
 
-	// broom object
+	//broom object
 	private ObjShape broomS;
 	private GameObject broom;
 
-	// box stuff
+	//box stuff
 	private ObjShape boxS;
 	private ArrayList<GameObject> spawnedBoxes = new ArrayList<GameObject>();
 	private ArrayList<PhysicsObject> spawnedBoxPhysics = new ArrayList<PhysicsObject>();
 
-	// physics stuff
+	//physics stuff
 	private PhysicsEngine physicsEngine;
 	private PhysicsObject[] housePhysics = new PhysicsObject[5];
 	private PhysicsObject groundPhysics;
 
-	// score stuff
+	//score stuff
 	private int score = 0;
 
-	// control stuff
+	//control stuff
 	private float moveSpeed = 15.0f;
 
-	// camera stuff
+	//camera stuff
 	private CameraOrbit3D orbitController;
 	private float camTurnSpeed = 0.02f;
 
@@ -106,33 +113,27 @@ public class MyGame extends VariableFrameRateGame
 
 	private boolean overheadInitialized = false;
 	private boolean overheadManualPan = false;
-	private float[][] housePositions = {
-		{  60f,  70f},
-		{ -80f,  40f},
-		{ 100f, -60f},
-		{ -40f, -100f},
-		{  20f,  120f}
-	};
+	
 
-	// game stuff
+	//game stuff
 	private boolean gameOver = false;
 	private String statusMsg = "";
 	private boolean gameStart = false;
 
-	// skybox stuff
+	//skybox stuff
 	private int skyboxTex;
 
-	// chopper NPC stuff
+	//chopper NPC stuff
 	private ObjShape chopperS;
-	private TextureImage chopperTx;         // stays null if chopper has no texture
+	private TextureImage chopperTx;         //stays null if chopper has no texture
 	private GameObject chopper;
 
-	private static final float CHOPPER_SPEED   = 4.0f;  // units per second
+	private static final float CHOPPER_SPEED = 4.0f; 
 
-	// audio stuff
+	//audio stuff
 	private IAudioManager audioMgr;
-	private Sound copterSound;   // looping engine sound attached to chopper
-	private Sound pointSound;    // one-shot sound played on scoring a point
+	private Sound copterSound;   //looping engine sound attached to chopper
+	private Sound pointSound;    //one-time sound played on scoring a point
 
 	public MyGame(String serverAddr, int sPort, String protocol)
 	{
@@ -177,7 +178,7 @@ public class MyGame extends VariableFrameRateGame
 		broomS  = new ImportedModel("broomModel.obj");
 		ghostS  = new ImportedModel("dolphinHighPoly.obj");
 		boxS    = new ImportedModel("box.obj");
-		chopperS = new ImportedModel("box.obj");   // chopper NPC shape
+		chopperS = new ImportedModel("box.obj");   //chopper NPC shape tbd
 	}
 
 	@Override
@@ -186,9 +187,9 @@ public class MyGame extends VariableFrameRateGame
 		doltx         = new TextureImage("Dolphin_HighPolyUV.jpg");
 		groundTx      = new TextureImage("sand.jpg");
 		groundHeightMap = new TextureImage("hills.jpg");
-		houseTx       = new TextureImage("brick1.jpg");
+		houseTx       = new TextureImage("brick1.jpg"); //tbd
 		ghostTx       = new TextureImage("Dolphin_HighPolyUV.jpg");
-		// chopperTx  = new TextureImage("chopper.png"); // uncomment if needed
+		//chopperTx  = new TextureImage("chopper.png"); //tbd
 	}
 
 	@Override
@@ -204,18 +205,16 @@ public class MyGame extends VariableFrameRateGame
 	{
 		audioMgr = engine.getAudioManager();
 
-		// -- copter.wav : looping sound that follows the chopper ----------------
-		AudioResource copterRes = audioMgr.createAudioResource(
-				"copter.wav", AudioResourceType.AUDIO_SAMPLE);
+		//copter.wav - loops and follows copter
+		AudioResource copterRes = audioMgr.createAudioResource("copter.wav", AudioResourceType.AUDIO_SAMPLE);
 		copterSound = new Sound(copterRes, SoundType.SOUND_EFFECT, 100, true);
 		copterSound.initialize(audioMgr);
 		copterSound.setMaxDistance(3000.0f);
 		copterSound.setMinDistance(4.0f);
 		copterSound.setRollOff(2.0f);
 
-		// -- point.wav : one-shot sound played at the collision point -----------
-		AudioResource pointRes = audioMgr.createAudioResource(
-				"point.wav", AudioResourceType.AUDIO_SAMPLE);
+		//point.wav - plays each time player scores a point
+		AudioResource pointRes = audioMgr.createAudioResource("point.wav", AudioResourceType.AUDIO_SAMPLE);
 		pointSound = new Sound(pointRes, SoundType.SOUND_EFFECT, 100, false);
 		pointSound.initialize(audioMgr);
 		pointSound.setMaxDistance(3000.0f);
@@ -256,10 +255,10 @@ public class MyGame extends VariableFrameRateGame
 		broom.setLocalTranslation(new Matrix4f().translation(-8f, 1.0f, 10f));
 		broom.setLocalScale(new Matrix4f().scaling(0.5f));
 
-		// chopper NPC — spawns near origin, hovering above terrain
+		//chopper NPC — spawns away from origin, hovering above terrain
 		chopper = new GameObject(GameObject.root(), chopperS, chopperTx);
 		chopper.setLocalTranslation(new Matrix4f().translation(30f, 0, 30f));
-		chopper.setLocalScale(new Matrix4f().scaling(1.0f)); // adjust scale to taste
+		chopper.setLocalScale(new Matrix4f().scaling(1.0f)); 
 	}
 
 	@Override
@@ -292,6 +291,7 @@ public class MyGame extends VariableFrameRateGame
 	}
 
 	@Override
+	//the houses and ground is physics
 	public void initializePhysicsObjects()
 	{
 		float[] gravity = {0f, -9.8f, 0f};
@@ -312,8 +312,7 @@ public class MyGame extends VariableFrameRateGame
 			(houses[i].getWorldRotation()).getNormalizedRotation(rot);
 			Vector3f colliderLoc = new Vector3f(loc.x, loc.y + 2.0f, loc.z);
 			float[] houseHalfExtents = {6.0f, 4.0f, 6.0f};
-			housePhysics[i] = (engine.getSceneGraph()).addPhysicsBox(
-				0.0f, colliderLoc, rot, houseHalfExtents);
+			housePhysics[i] = (engine.getSceneGraph()).addPhysicsBox(0.0f, colliderLoc, rot, houseHalfExtents);
 			housePhysics[i].setBounciness(0.1f);
 			houses[i].setPhysicsObject(housePhysics[i]);
 		}
@@ -404,7 +403,7 @@ public class MyGame extends VariableFrameRateGame
 
 		statusMsg = "Score: " + score;
 
-		// tick physics
+		//tick physics
 		if (gameStart && physicsEngine != null)
 		{
 			physicsEngine.update(elapsTime);
@@ -430,7 +429,7 @@ public class MyGame extends VariableFrameRateGame
 					if (hits.contains(housePhysics[h])) {
 						toRemove.add(i);
 						score++;
-						// play the point sound at the box's collision position
+						//play the point sound at the box's collision position
 						pointSound.setLocation(spawnedBoxes.get(i).getWorldLocation());
 						pointSound.play();
 						break;
@@ -446,7 +445,7 @@ public class MyGame extends VariableFrameRateGame
 			}
 		}
 
-		// tick chopper NPC
+		//tick chopper NPC
 		updateChopper(elapsTime);
 
 		// update 3D audio each frame
@@ -457,63 +456,53 @@ public class MyGame extends VariableFrameRateGame
 		updateOverheadHUD();
 	}
 
-	// ---------------------------------------------------------------
-	//  Chopper NPC helpers
-	// ---------------------------------------------------------------
-
-	/**
-	 * Ticks the chopper NPC each frame.
-	 * After the game starts : moves slowly toward the nearest player.
-	 */
+	 //chopper action, move slowly towards nearest player aftet game starts
 	private void updateChopper(float dt)
 	{
 		if (chopper == null) return;
 
-		// keep chopper at hover height above terrain regardless of game state
+		//keep chopper at  y=0 regardless of game state
 		Vector3f cPos = chopper.getLocalLocation();
 		float th = ground.getHeight(cPos.x, cPos.z);
 		chopper.setLocalLocation(new Vector3f(cPos.x, th + 0, cPos.z));
 
-		if (!gameStart) return;   // don't move until Enter is pressed
+		if (!gameStart) return;   //don't move until Enter is pressed
 
-		// find the closest player (local avatar + all ghost avatars)
+		//find the closest player (local avatar + all ghost avatars)
 		Vector3f target = findClosestPlayerPos(chopper.getWorldLocation());
 		if (target == null) return;
 
-		// move toward target on the XZ plane
+		//move toward target on the XZ plane
 		Vector3f chopPos = chopper.getWorldLocation();
 		Vector3f toTarget = new Vector3f(target.x - chopPos.x, 0f, target.z - chopPos.z);
 
 		float dist = toTarget.length();
-		if (dist < 0.5f) return;   // close enough — stop jittering
+		if (dist < 0.5f) return;   //close enough — stop jittering
 
 		toTarget.normalize().mul(CHOPPER_SPEED * dt);
 
 		chopper.setLocalLocation(new Vector3f(
 			chopPos.x + toTarget.x,
-			chopPos.y,              // Y is already terrain-locked above
+			chopPos.y,              //y is already terrain-locked above
 			chopPos.z + toTarget.z));
 
-		// face direction of travel (yaw only)
+		//face direction of travel (yaw only)
 		float angle = (float) Math.atan2(toTarget.x, toTarget.z);
 		chopper.setLocalRotation(new Matrix4f().rotationY(angle));
 	}
 
-	/**
-	 * Returns the world position of the player (local or ghost) closest to
-	 * {@code from}, or null if no players exist yet.
-	 */
+	//return position of player closest to object
 	private Vector3f findClosestPlayerPos(Vector3f from)
 	{
 		Vector3f closest  = null;
 		float    bestDist = Float.MAX_VALUE;
 
-		// local player
+		//local player
 		Vector3f dolPos = dol.getWorldLocation();
 		float d = from.distance(dolPos);
 		if (d < bestDist) { bestDist = d; closest = dolPos; }
 
-		// remote ghost players
+		//remote ghost players
 		for (GhostAvatar ga : gm.getGhostAvatars()) {
 			Vector3f gPos = ga.getWorldLocation();
 			float gd = from.distance(gPos);
@@ -523,10 +512,7 @@ public class MyGame extends VariableFrameRateGame
 		return closest;
 	}
 
-	// ---------------------------------------------------------------
-	//  HUD helpers
-	// ---------------------------------------------------------------
-
+	//HUD Helpers
 	private boolean hudDebugPrinted = false;
 	private void updateMainHUD()
 	{
@@ -562,10 +548,7 @@ public class MyGame extends VariableFrameRateGame
 		overheadCam.lookAt(target);
 	}
 
-	// ---------------------------------------------------------------
-	//  Avatar helpers
-	// ---------------------------------------------------------------
-
+	//avatar stuff
 	private void applySelectedAvatar()
 	{
 		if (dol == null) return;
@@ -594,10 +577,7 @@ public class MyGame extends VariableFrameRateGame
 		}
 	}
 
-	// ---------------------------------------------------------------
-	//  Input actions
-	// ---------------------------------------------------------------
-
+	//input actions
 	private class OrbitAzimuthAction extends AbstractInputAction {
 		private float dir;
 		public OrbitAzimuthAction(float d) { dir = d; }
@@ -788,10 +768,7 @@ public class MyGame extends VariableFrameRateGame
 		}
 	}
 
-	// ---------------------------------------------------------------
-	//  Networking
-	// ---------------------------------------------------------------
-
+	//networking methods
 	private void setupNetworking()
 	{
 		isConnected = false;
@@ -939,24 +916,21 @@ public class MyGame extends VariableFrameRateGame
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 	}
 
-	// ---------------------------------------------------------------
-	//  Public accessors
-	// ---------------------------------------------------------------
-
+	//accessors
 	public void setIsConnected(boolean connected) { this.isConnected = connected; }
-	public boolean getIsConnected()               { return isConnected; }
-	public ObjShape getGhostShape()               { return ghostS; }
-	public TextureImage getGhostTexture()         { return ghostTx; }
-	public ObjShape getDolphinShape()             { return dolS; }
-	public TextureImage getDolphinTexture()       { return doltx; }
-	public ObjShape getWitchShape()               { return witchS; }
-	public TextureImage getWitchTexture()         { return null; }
-	public GhostManager getGhostManager()         { return gm; }
-	public Engine getEngine()                     { return engine; }
-	public Vector3f getPlayerPosition()           { return dol.getWorldLocation(); }
-	public int getSelectedAvatar()                { return selectedAvatar; }
-	public boolean isTwoPlayer()                  { return twoPlayer; }
-	public int getGhostCount()                    { return gm.getGhostCount(); }
+	public boolean getIsConnected() { return isConnected; }
+	public ObjShape getGhostShape() { return ghostS; }
+	public TextureImage getGhostTexture() { return ghostTx; }
+	public ObjShape getDolphinShape() { return dolS; }
+	public TextureImage getDolphinTexture() { return doltx; }
+	public ObjShape getWitchShape() { return witchS; }
+	public TextureImage getWitchTexture() { return null; }
+	public GhostManager getGhostManager() { return gm; }
+	public Engine getEngine() { return engine; }
+	public Vector3f getPlayerPosition() { return dol.getWorldLocation(); }
+	public int getSelectedAvatar() { return selectedAvatar; }
+	public boolean isTwoPlayer() { return twoPlayer; }
+	public int getGhostCount() { return gm.getGhostCount(); }
 
 	@Override
 	public void shutdown() {
