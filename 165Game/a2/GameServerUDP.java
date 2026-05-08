@@ -209,21 +209,51 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 	}
 
 	public static void main(String[] args) {
-		try {
-			int port = 5000;
-			if (args.length > 0) {
-				port = Integer.parseInt(args[0]);
-			}
-			
-			GameServerUDP server = new GameServerUDP(port);
-			System.out.println("Game Server started on port " + port);
-			System.out.println("Waiting for clients...");
-			
-			//keep server running
-			Thread.currentThread().join();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
+    	try {
+        	int preferredPort = 5000;
+        	if (args.length > 0) {
+            	preferredPort = Integer.parseInt(args[0]);
+        	}
+
+        	int port = findAvailablePort(preferredPort, preferredPort + 20);
+        	if (port == -1) {
+           		System.out.println("ERROR: No available port found in range "
+                	+ preferredPort + "–" + (preferredPort + 20));
+            	return;
+        	}
+
+        	if (port != preferredPort) {
+            	System.out.println("Port " + preferredPort
+                	+ " is in use. Trying port " + port + " instead.");
+        	}
+
+        	GameServerUDP server = new GameServerUDP(port);
+        	System.out.println("Game Server started on port " + port);
+        	System.out.println("Waiting for clients...");
+
+        	Thread.currentThread().join();
+    	}
+    	catch (Exception e) {
+        	e.printStackTrace();
+    	}
+	}
+
+/**
+ * Scans [startPort, endPort] and returns the first port not already bound,
+ * or -1 if none are free.
+ */
+	private static int findAvailablePort(int startPort, int endPort) {
+    	for (int port = startPort; port <= endPort; port++) {
+        	try (java.net.DatagramSocket probe = new java.net.DatagramSocket(port)) {
+        	    return port; // successfully bound → port is free
+        	}
+        	catch (java.net.BindException e) {
+        	    // port in use, try next
+        	}
+        	catch (java.io.IOException e) {
+        	    // unexpected error on this port, skip it
+        	}
+    	}
+    	return -1;
 	}
 }
