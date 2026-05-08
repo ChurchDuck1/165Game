@@ -24,6 +24,8 @@ import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
 
 import net.java.games.input.Event;
+import tage.audio.*;
+
 
 
 public class MyGame extends VariableFrameRateGame
@@ -127,6 +129,11 @@ public class MyGame extends VariableFrameRateGame
 
 	private static final float CHOPPER_SPEED   = 4.0f;  // units per second
 
+	// audio stuff
+	private IAudioManager audioMgr;
+	private Sound copterSound;   // looping engine sound attached to chopper
+	private Sound pointSound;    // one-shot sound played on scoring a point
+
 	public MyGame(String serverAddr, int sPort, String protocol)
 	{
 		super();
@@ -190,6 +197,30 @@ public class MyGame extends VariableFrameRateGame
 		skyboxTex = (engine.getSceneGraph()).loadCubeMap("fluffyClouds");
 		(engine.getSceneGraph()).setActiveSkyBoxTexture(skyboxTex);
 		(engine.getSceneGraph()).setSkyBoxEnabled(true);
+	}
+
+	@Override
+	public void loadSounds()
+	{
+		audioMgr = engine.getAudioManager();
+
+		// -- copter.wav : looping sound that follows the chopper ----------------
+		AudioResource copterRes = audioMgr.createAudioResource(
+				"copter.wav", AudioResourceType.AUDIO_SAMPLE);
+		copterSound = new Sound(copterRes, SoundType.SOUND_EFFECT, 100, true);
+		copterSound.initialize(audioMgr);
+		copterSound.setMaxDistance(3000.0f);
+		copterSound.setMinDistance(4.0f);
+		copterSound.setRollOff(2.0f);
+
+		// -- point.wav : one-shot sound played at the collision point -----------
+		AudioResource pointRes = audioMgr.createAudioResource(
+				"point.wav", AudioResourceType.AUDIO_SAMPLE);
+		pointSound = new Sound(pointRes, SoundType.SOUND_EFFECT, 100, false);
+		pointSound.initialize(audioMgr);
+		pointSound.setMaxDistance(3000.0f);
+		pointSound.setMinDistance(2000.0f);
+		pointSound.setRollOff(2.0f);
 	}
 
 	@Override
@@ -313,6 +344,18 @@ public class MyGame extends VariableFrameRateGame
 
 		setupInputs();
 		setupNetworking();
+
+		// start the looping chopper sound
+		copterSound.setLocation(chopper.getWorldLocation());
+		setEarParameters();
+		copterSound.play();
+	}
+
+	public void setEarParameters()
+	{
+		Camera camera = (engine.getRenderSystem()).getViewport("LEFT").getCamera();
+		audioMgr.getEar().setLocation(dol.getWorldLocation());
+		audioMgr.getEar().setOrientation(camera.getN(), new Vector3f(0.0f, 1.0f, 0.0f));
 	}
 
 	@Override
@@ -387,6 +430,9 @@ public class MyGame extends VariableFrameRateGame
 					if (hits.contains(housePhysics[h])) {
 						toRemove.add(i);
 						score++;
+						// play the point sound at the box's collision position
+						pointSound.setLocation(spawnedBoxes.get(i).getWorldLocation());
+						pointSound.play();
 						break;
 					}
 				}
@@ -402,6 +448,10 @@ public class MyGame extends VariableFrameRateGame
 
 		// tick chopper NPC
 		updateChopper(elapsTime);
+
+		// update 3D audio each frame
+		copterSound.setLocation(chopper.getWorldLocation());
+		setEarParameters();
 
 		updateMainHUD();
 		updateOverheadHUD();
