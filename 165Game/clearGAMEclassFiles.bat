@@ -1,1 +1,1 @@
-del .\a2\*.class
+del .\packageDelivery\*.class
