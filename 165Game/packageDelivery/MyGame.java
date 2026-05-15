@@ -22,7 +22,6 @@ import java.util.HashSet;
 import org.joml.*;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
-
 import tage.nodeControllers.*;
 import tage.NodeController;
 import net.java.games.input.Event;
@@ -37,11 +36,11 @@ public class MyGame extends VariableFrameRateGame
 	private long lastFrameTime, currFrameTime;
 	private float elapsTime;
 
-	//dolphin stuff
+	//avatar stuff
 	private GameObject dol;
-	private ObjShape dolS;
-	private TextureImage doltx;
-	private ObjShape witchS;
+	private AnimatedShape witchS;
+	private TextureImage witchTexA;
+	private TextureImage witchTexB;
 	private int selectedAvatar = 0; //0 = dolphin, 1 = witch
 	private float avatarGroundOffset = 1.0f;
 	private float avatarCameraOffset = 0.0f;
@@ -95,6 +94,7 @@ public class MyGame extends VariableFrameRateGame
 	//broom object
 	private ObjShape broomS;
 	private GameObject broom;
+	private TextureImage broomTx;
 
 	//mountain object
 	private ObjShape mountainS;
@@ -123,8 +123,10 @@ public class MyGame extends VariableFrameRateGame
 
 	//control stuff
 	private float moveSpeed = 15.0f;
+	private boolean witchWalking = false;
+	private boolean witchMovedThisFrame = false;
 	private static final float ARROW_SPIN_SPEED = 0.002f; // radians per second — increase to spin faster
-
+		
 	//ground/air mode stuff
 	private boolean isOnGround    = true;  //true = walking on terrain at y=-16, false = flying at y=0
 	private boolean isTransitioning = false; //true while player is mid-sink or mid-rise
@@ -210,8 +212,8 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void loadShapes()
 	{
-		dolS    = new ImportedModel("dolphinHighPoly.obj");
-		witchS  = new ImportedModel("witchModel.obj");
+		witchS = new AnimatedShape("witchModel.rkm", "witchModel.rks");
+		witchS.loadAnimation("WALK", "witchWalk.rka");
 		groundS = new TerrainPlane(1000);
 		houseS  = new ImportedModel("house.obj");
 		broomS    = new ImportedModel("broomModel.obj");
@@ -227,7 +229,9 @@ public class MyGame extends VariableFrameRateGame
 	@Override
 	public void loadTextures()
 	{
-		doltx         = new TextureImage("Dolphin_HighPolyUV.jpg");
+		witchTexA = new TextureImage("witchTexA.png");
+		witchTexB = new TextureImage("witchTexB.png");
+
 		groundTx      = new TextureImage("roads.PNG");
 		groundHeightMap = new TextureImage("hills.jpg");
 		houseTx       = new TextureImage("brick1.jpg"); //tbd
@@ -235,8 +239,9 @@ public class MyGame extends VariableFrameRateGame
 		ghostTx       = new TextureImage("Dolphin_HighPolyUV.jpg");
 		chopperTx  = new TextureImage("DolphinEvil.png"); 
 		boxTx     = new TextureImage("makemake.jpg");
-		boxpileTx = new TextureImage("boxpile_texture.png");
+		//boxpileTx = new TextureImage("boxpile_texture.png");
 		arrowTx   = new TextureImage("blue.PNG");
+		broomTx = new TextureImage("broomTex.png");
 	}
 
 	@Override
@@ -275,10 +280,9 @@ public class MyGame extends VariableFrameRateGame
 		Matrix4f initialTranslation, initialScale;
 
 		//build player avatar
-		ObjShape startShape   = (selectedAvatar == 1) ? witchS : dolS;
-		TextureImage startTex = (selectedAvatar == 1) ? null   : doltx;
-		dol = new GameObject(GameObject.root(), startShape, startTex);
-		initialTranslation = (new Matrix4f()).translation(20f, -16f, 20f);
+		TextureImage startTex = (selectedAvatar == 1) ? witchTexB   : witchTexA;
+		dol = new GameObject(GameObject.root(), witchS, startTex);
+		initialTranslation = (new Matrix4f()).translation(60f, -16f, 20f);
 		dol.setLocalTranslation(initialTranslation);
 		applyAvatarTransform();
 
@@ -313,10 +317,27 @@ public class MyGame extends VariableFrameRateGame
 		boxpile.setLocalTranslation(new Matrix4f().translation(0f, -15f, 0f));
 		boxpile.setLocalScale(new Matrix4f().scaling(1f));
 
-		//broom object
-		broom = new GameObject(GameObject.root(), broomS, null);
-		broom.setLocalTranslation(new Matrix4f().translation(-8f, 1.0f, 10f));
-		broom.setLocalScale(new Matrix4f().scaling(0.5f));
+		//broom held/ridden by witch avatar
+		broom = new GameObject(dol, broomS, broomTx);
+
+		broom.propagateTranslation(true);
+		broom.propagateRotation(true);
+		broom.propagateScale(false);
+		broom.applyParentRotationToPosition(true);
+		broom.applyParentScaleToPosition(false);
+
+		// X = left/right, Y = up/down, Z = forward/back relative to witch
+		// Move broom back so witch looks farther forward on it
+		broom.setLocalTranslation(new Matrix4f().translation(0.00f, -2.40f, -2.20f));
+
+		// Slightly tilt broom so bristles point downward
+		Matrix4f broomRot = new Matrix4f()
+			.rotationY((float)Math.toRadians(0.0f))
+			.rotateX((float)Math.toRadians(78.0f))
+			.rotateZ((float)Math.toRadians(0.0f));
+
+		broom.setLocalRotation(broomRot);
+		broom.setLocalScale(new Matrix4f().scaling(0.50f));
 
 		//mountains
 		mountain = new GameObject(GameObject.root(), mountainS, mountainTx);
@@ -442,6 +463,9 @@ public class MyGame extends VariableFrameRateGame
 		Camera c = engine.getRenderSystem().getViewport("LEFT").getCamera();
 		orbitController = new CameraOrbit3D(c, dol);
 
+		// Pull camera back so witch is less zoomed-in
+		orbitController.zoom(6.0f);
+
 		setupInputs();
 		setupNetworking();
 
@@ -478,7 +502,17 @@ public class MyGame extends VariableFrameRateGame
 			return;
 		}
 
+		witchMovedThisFrame = false;
+
 		engine.getInputManager().update(elapsTime);
+
+		if (witchWalking && !witchMovedThisFrame) {
+			stopWitchWalkAnimation();
+		}
+
+		if (witchS != null) {
+			witchS.updateAnimation();
+		}
 
 		//process networking
 		processNetworking(elapsTime);
@@ -511,10 +545,6 @@ public class MyGame extends VariableFrameRateGame
 
 		Vector3f dolPos = dol.getWorldLocation();
 		orbitController.updateCameraPosition();
-
-		Camera c = engine.getRenderSystem().getViewport("LEFT").getCamera();
-		Vector3f camLoc = c.getLocation();
-		c.setLocation(new Vector3f(camLoc.x, camLoc.y + avatarCameraOffset, camLoc.z));
 
 		if (!overheadInitialized) {
 			overheadX = dolPos.x;
@@ -692,30 +722,38 @@ public class MyGame extends VariableFrameRateGame
 	private void applySelectedAvatar()
 	{
 		if (dol == null) return;
+
+		dol.setShape(witchS);
+
 		if (selectedAvatar == 1) {
-			dol.setShape(witchS);
-			dol.setTextureImage(null);
-			statusMsg = "Witch selected";
+			dol.setTextureImage(witchTexB);
+			statusMsg = "Witch B selected";
 		}
 		else {
-			dol.setShape(dolS);
-			dol.setTextureImage(doltx);
-			statusMsg = "Dolphin selected";
+			dol.setTextureImage(witchTexA);
+			statusMsg = "Witch A selected";
 		}
+
 		applyAvatarTransform();
 	}
 
-	private void applyAvatarTransform()
-	{
-		if (dol == null) return;
-		if (selectedAvatar == 1) {
+		private void applyAvatarTransform()
+		{
+			if (dol == null) return;
+
 			dol.setLocalScale(new Matrix4f().scaling(0.4f));
+
+			// Rotate the witch model visually 180 degrees
+			dol.getRenderStates().setModelOrientationCorrection(
+				new Matrix4f().rotationY((float)Math.toRadians(180.0f))
+			);
+
+			// Raise witch higher off the ground
+			avatarGroundOffset = 4.0f;
+
+			// This is camera height adjustment, not zoom
+			avatarCameraOffset = 0.0f;
 		}
-		else {
-			dol.setLocalScale(new Matrix4f().scaling(3.0f));
-			dol.setLocalRotation(new Matrix4f());
-		}
-	}
 
 	//input actions
 	private class OrbitAzimuthAction extends AbstractInputAction {
@@ -810,14 +848,38 @@ public class MyGame extends VariableFrameRateGame
 		dol.setLocalLocation(new Vector3f(cx, newPos.y, cz));
 	}
 
+	private void startWitchWalkAnimation() {
+		if (witchS == null) return;
+
+		if (!witchWalking) {
+			witchS.stopAnimation();
+			witchS.playAnimation("WALK", 1.0f, AnimatedShape.EndType.LOOP, 0);
+			witchWalking = true;
+		}
+	}
+
+	private void stopWitchWalkAnimation() {
+		if (witchS == null) return;
+
+		if (witchWalking) {
+			witchS.stopAnimation();
+			witchWalking = false;
+		}
+	}
+
 	private class FwdAction extends AbstractInputAction {
 		@Override
 		public void performAction(float time, Event e) {
 			if (!gameStart) return;
+
+			witchMovedThisFrame = true;
+			startWitchWalkAnimation();
+
 			float dist = moveSpeed * time;
 			Vector3f pos = dol.getWorldLocation();
 			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
 			clampToBorder(new Vector3f(pos).add(new Vector3f(fwd).mul(dist)));
+
 			if (protClient != null && isConnected)
 				protClient.sendMoveMessage(dol.getWorldLocation());
 		}
@@ -827,10 +889,15 @@ public class MyGame extends VariableFrameRateGame
 		@Override
 		public void performAction(float time, Event e) {
 			if (!gameStart) return;
+
+			witchMovedThisFrame = true;
+			startWitchWalkAnimation();
+
 			float dist = moveSpeed * time;
 			Vector3f pos = dol.getWorldLocation();
 			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
 			clampToBorder(new Vector3f(pos).add(new Vector3f(fwd).mul(-dist)));
+
 			if (protClient != null && isConnected)
 				protClient.sendMoveMessage(dol.getWorldLocation());
 		}
@@ -852,12 +919,18 @@ public class MyGame extends VariableFrameRateGame
 		@Override
 		public void performAction(float time, Event e) {
 			if (!gameStart) return;
+
 			float val = e.getValue();
 			if (Math.abs(val) < 0.15f) return;
+
+			witchMovedThisFrame = true;
+			startWitchWalkAnimation();
+
 			float dist = moveSpeed * time * (-val);
 			Vector3f pos = dol.getWorldLocation();
 			Vector3f fwd = new Vector3f(dol.getWorldForwardVector()).normalize();
 			clampToBorder(new Vector3f(pos).add(new Vector3f(fwd).mul(dist)));
+
 			if (protClient != null && isConnected)
 				protClient.sendMoveMessage(dol.getWorldLocation());
 		}
@@ -1115,10 +1188,14 @@ public class MyGame extends VariableFrameRateGame
 	public boolean getIsConnected() { return isConnected; }
 	public ObjShape getGhostShape() { return ghostS; }
 	public TextureImage getGhostTexture() { return ghostTx; }
-	public ObjShape getDolphinShape() { return dolS; }
-	public TextureImage getDolphinTexture() { return doltx; }
+
+	public ObjShape getDolphinShape() { return witchS; }
+	public TextureImage getDolphinTexture() { return witchTexA; }
 	public ObjShape getWitchShape() { return witchS; }
-	public TextureImage getWitchTexture() { return null; }
+
+	public TextureImage getWitchTexture() {
+		return (selectedAvatar == 1) ? witchTexB : witchTexA; }
+
 	public GhostManager getGhostManager() { return gm; }
 	public Engine getEngine() { return engine; }
 	public Vector3f getPlayerPosition() { return dol.getWorldLocation(); }
