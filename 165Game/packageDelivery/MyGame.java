@@ -23,6 +23,8 @@ import org.joml.*;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
 
+import tage.nodeControllers.*;
+import tage.NodeController;
 import net.java.games.input.Event;
 import tage.audio.*;
 
@@ -40,7 +42,7 @@ public class MyGame extends VariableFrameRateGame
 	private ObjShape dolS;
 	private TextureImage doltx;
 	private ObjShape witchS;
-	private int selectedAvatar = 0; // 0 = dolphin, 1 = witch
+	private int selectedAvatar = 0; //0 = dolphin, 1 = witch
 	private float avatarGroundOffset = 1.0f;
 	private float avatarCameraOffset = 0.0f;
 
@@ -56,10 +58,8 @@ public class MyGame extends VariableFrameRateGame
 	private ProtocolType serverProtocol = ProtocolType.UDP;
 
 	//light stuff
-	private Light light1, homeLight;
-
-	//home stuff - logical position only, no rendered object
-	private Vector3f homePosition = new Vector3f(0f, 0f, -10f);
+	private Light light1;
+	private Light[] houseLights = new Light[12];
 
 	//ground stuff
 	private ObjShape groundS;
@@ -69,12 +69,28 @@ public class MyGame extends VariableFrameRateGame
 
 	//house stuff
 	private ObjShape houseS;
-	private static final int HOUSE_COUNT = 16; //4x4 grid
+	private static final int HOUSE_COUNT = 12; //4x4 grid with 4 middle slots removed
 	private GameObject[] houses = new GameObject[HOUSE_COUNT];
 	private TextureImage houseTx;
 	//grid settings
 	private static final float GRID_SPACING = 70f; //distance between houses
 	private static final float GRID_OFFSET  = -105f; //position of first column/row
+	//indices in the 4x4 grid that are skipped (the 2x2 centre: rows 1-2, cols 1-2)
+	private static final java.util.Set<Integer> SKIP_GRID = new java.util.HashSet<>(
+		java.util.Arrays.asList(5, 6, 9, 10));
+
+	//warehouse object
+	private ObjShape warehouseS;
+	private GameObject warehouse;
+
+	//boxpile object
+	private ObjShape boxpileS;
+	private GameObject boxpile;
+	private TextureImage boxpileTx;
+	private ObjShape arrowS;
+	private GameObject arrow;
+	private TextureImage arrowTx;
+	private NodeController rc;
 
 	//broom object
 	private ObjShape broomS;
@@ -95,12 +111,26 @@ public class MyGame extends VariableFrameRateGame
 	private PhysicsEngine physicsEngine;
 	private PhysicsObject[] housePhysics = new PhysicsObject[HOUSE_COUNT];
 	private PhysicsObject groundPhysics;
+	private PhysicsObject boxpilePhysics;
 
 	//score stuff
 	private int score = 0;
+	private int boxesOnHand = 0; // boxes player is currently carrying; refills to 3 at boxpile
+
+	//active house stuff
+	private int activeHouse = -1; // index into houses[]; -1 = none (before game start)
+	private java.util.Random rng = new java.util.Random();
 
 	//control stuff
 	private float moveSpeed = 15.0f;
+	private static final float ARROW_SPIN_SPEED = 0.002f; // radians per second — increase to spin faster
+
+	//ground/air mode stuff
+	private boolean isOnGround    = true;  //true = walking on terrain at y=-16, false = flying at y=0
+	private boolean isTransitioning = false; //true while player is mid-sink or mid-rise
+	private static final float SURFACE_Y      = 0.0f;
+	private static final float GROUND_Y       = -16.0f;
+	private static final float SINK_RISE_SPEED = 8.0f;
 
 	//world border limits (for movement)
 	private static final float BORDER_X_MAX =  150f;  //east wall
@@ -137,12 +167,12 @@ public class MyGame extends VariableFrameRateGame
 	private TextureImage chopperTx; 
 	private GameObject chopper;
 
-	private static final float CHOPPER_SPEED = 4.0f; 
+	private static final float CHOPPER_SPEED = 6.0f; 
 
 	//audio stuff
 	private IAudioManager audioMgr;
-	private Sound copterSound;   //looping engine sound attached to chopper
-	private Sound pointSound;    //one-time sound played on scoring a point
+	private Sound copterSound; //looping engine sound attached to chopper
+	private Sound pointSound; //one-time sound played on scoring a point
 
 	public MyGame(String serverAddr, int sPort, String protocol)
 	{
@@ -189,6 +219,9 @@ public class MyGame extends VariableFrameRateGame
 		ghostS    = new ImportedModel("dolphinHighPoly.obj");
 		boxS    = new ImportedModel("box.obj");
 		chopperS = new ImportedModel("dolphinHighPoly.obj"); //chopper (aka evil dolphin)
+		warehouseS = new ImportedModel("warehouse.obj");
+		boxpileS   = new ImportedModel("boxpile.obj");
+		arrowS     = new ImportedModel("arrow.obj");
 	}
 
 	@Override
@@ -201,7 +234,9 @@ public class MyGame extends VariableFrameRateGame
 		mountainTx    = new TextureImage("rock.PNG");  
 		ghostTx       = new TextureImage("Dolphin_HighPolyUV.jpg");
 		chopperTx  = new TextureImage("DolphinEvil.png"); 
-		boxTx = new TextureImage("makemake.jpg");
+		boxTx     = new TextureImage("makemake.jpg");
+		boxpileTx = new TextureImage("boxpile_texture.png");
+		arrowTx   = new TextureImage("blue.PNG");
 	}
 
 	@Override
@@ -243,7 +278,7 @@ public class MyGame extends VariableFrameRateGame
 		ObjShape startShape   = (selectedAvatar == 1) ? witchS : dolS;
 		TextureImage startTex = (selectedAvatar == 1) ? null   : doltx;
 		dol = new GameObject(GameObject.root(), startShape, startTex);
-		initialTranslation = (new Matrix4f()).translation(0f, 1.0f, 0f);
+		initialTranslation = (new Matrix4f()).translation(20f, -16f, 20f);
 		dol.setLocalTranslation(initialTranslation);
 		applyAvatarTransform();
 
@@ -254,10 +289,11 @@ public class MyGame extends VariableFrameRateGame
 		ground.setIsTerrain(true);
 		ground.setHeightMap(groundHeightMap);
 
-		//build 16 houses in a 4x4 grid
+		//build 12 houses in a 4x4 grid with centre 2x2 removed
 		int idx = 0;
 		for (int row = 0; row < 4; row++) {
 			for (int col = 0; col < 4; col++) {
+				if (SKIP_GRID.contains(row * 4 + col)) continue;
 				float x = GRID_OFFSET + col * GRID_SPACING;
 				float z = GRID_OFFSET + row * GRID_SPACING;
 				houses[idx] = new GameObject(GameObject.root(), houseS, houseTx);
@@ -266,6 +302,16 @@ public class MyGame extends VariableFrameRateGame
 				idx++;
 			}
 		}
+
+		//warehouse at centre of grid
+		warehouse = new GameObject(GameObject.root(), warehouseS, houseTx);
+		warehouse.setLocalTranslation(new Matrix4f().translation(0f, -15f, 0f));
+		warehouse.setLocalScale(new Matrix4f().scaling(3f));
+
+		//boxpile at ground level centre
+		boxpile = new GameObject(GameObject.root(), boxpileS, boxpileTx);
+		boxpile.setLocalTranslation(new Matrix4f().translation(0f, -15f, 0f));
+		boxpile.setLocalScale(new Matrix4f().scaling(1f));
 
 		//broom object
 		broom = new GameObject(GameObject.root(), broomS, null);
@@ -280,7 +326,12 @@ public class MyGame extends VariableFrameRateGame
 		//chopper NPC — spawns away from origin, hovering above terrain
 		chopper = new GameObject(GameObject.root(), chopperS, chopperTx);
 		chopper.setLocalTranslation(new Matrix4f().translation(30f, 1, 30f));
-		chopper.setLocalScale(new Matrix4f().scaling(3.0f)); 
+		chopper.setLocalScale(new Matrix4f().scaling(3.0f));
+
+		//arrow indicator — parked off-screen until game start; pickNewActiveHouse() moves it
+		arrow = new GameObject(GameObject.root(), arrowS, arrowTx);
+		arrow.setLocalTranslation(new Matrix4f().translation(0f, -1000f, 0f));
+		arrow.setLocalScale(new Matrix4f().scaling(3.0f));
 	}
 
 	@Override
@@ -338,6 +389,15 @@ public class MyGame extends VariableFrameRateGame
 			housePhysics[i].setBounciness(0.1f);
 			houses[i].setPhysicsObject(housePhysics[i]);
 		}
+
+		//boxpile: player walking into it refills boxes
+		loc = boxpile.getWorldLocation();
+		rot = new Quaternionf();
+		(boxpile.getWorldRotation()).getNormalizedRotation(rot);
+		float[] boxpileHalfExtents = {4.0f, 4.0f, 4.0f};
+		boxpilePhysics = (engine.getSceneGraph()).addPhysicsBox(0.0f, loc, rot, boxpileHalfExtents);
+		boxpilePhysics.setBounciness(0.0f);
+		boxpile.setPhysicsObject(boxpilePhysics);
 	}
 
 	@Override
@@ -348,8 +408,27 @@ public class MyGame extends VariableFrameRateGame
 		light1.setLocation(new Vector3f(5.0f, 4.0f, 2.0f));
 		(engine.getSceneGraph()).addLight(light1);
 
-		homeLight = new Light();
-		homeLight.setLocation(new Vector3f(homePosition).add(0f, 12f, 0f));
+		//one light hovering above each of the 12 houses — all off by default
+		for (int i = 0; i < HOUSE_COUNT; i++) {
+			Vector3f hPos = houses[i].getWorldLocation();
+			houseLights[i] = new Light();
+			houseLights[i].setLocation(new Vector3f(hPos.x, hPos.y + 12f, hPos.z));
+			houseLights[i].disable();
+			(engine.getSceneGraph()).addLight(houseLights[i]);
+		}
+	}
+
+	//turns off all house lights, picks a new random active house, lights it, and moves the arrow above it
+	private void pickNewActiveHouse()
+	{
+		for (int i = 0; i < HOUSE_COUNT; i++)
+			houseLights[i].disable();
+		activeHouse = rng.nextInt(HOUSE_COUNT);
+		houseLights[activeHouse].enable();
+
+		//move arrow to hover above the active house
+		Vector3f hPos = houses[activeHouse].getWorldLocation();
+		arrow.setLocalLocation(new Vector3f(hPos.x, hPos.y + 20f, hPos.z));
 	}
 
 	@Override
@@ -366,7 +445,13 @@ public class MyGame extends VariableFrameRateGame
 		setupInputs();
 		setupNetworking();
 
-		// start the looping chopper sound
+		//set up rotating arrow indicator
+		rc = new RotationController(engine, new Vector3f(0, 1, 0), ARROW_SPIN_SPEED);
+		rc.addTarget(arrow);
+		(engine.getSceneGraph()).addNodeController(rc);
+		rc.enable();
+
+		//start the looping chopper sound
 		copterSound.setLocation(chopper.getWorldLocation());
 		setEarParameters();
 		copterSound.play();
@@ -389,19 +474,40 @@ public class MyGame extends VariableFrameRateGame
 		// game over check
 		if (gameOver) {
 			updateMainHUD();
-			updateOverheadHUD();
+			updateHUD2();
 			return;
 		}
 
 		engine.getInputManager().update(elapsTime);
 
-		// process networking
+		//process networking
 		processNetworking(elapsTime);
 
-		// bind player avatar to terrain
+		//determine the Y baseline the player should be on this frame
+		float targetBaseY = isOnGround ? GROUND_Y : SURFACE_Y;
+
+		//if mid-transit, move toward the target baseline before applying terrain-snap
 		Vector3f dolLoc = dol.getLocalLocation();
+		if (isTransitioning) {
+			float targetY = ground.getHeight(dolLoc.x, dolLoc.z) + targetBaseY + avatarGroundOffset;
+			float step    = SINK_RISE_SPEED * elapsTime;
+			float newY;
+			if (isOnGround) {
+				newY = Math.max(dolLoc.y - step, targetY);
+				if (newY <= targetY) isTransitioning = false;
+			} else {
+				newY = Math.min(dolLoc.y + step, targetY);
+				if (newY >= targetY) isTransitioning = false;
+			}
+			dol.setLocalLocation(new Vector3f(dolLoc.x, newY, dolLoc.z));
+		}
+
+		//bind player avatar to terrain — always active, offset by current mode's base Y
+		dolLoc = dol.getLocalLocation();
 		float terrainHeight = ground.getHeight(dolLoc.x, dolLoc.z);
-		dol.setLocalLocation(new Vector3f(dolLoc.x, terrainHeight + avatarGroundOffset, dolLoc.z));
+		if (!isTransitioning) {
+			dol.setLocalLocation(new Vector3f(dolLoc.x, targetBaseY + terrainHeight + avatarGroundOffset, dolLoc.z));
+		}
 
 		Vector3f dolPos = dol.getWorldLocation();
 		orbitController.updateCameraPosition();
@@ -447,15 +553,24 @@ public class MyGame extends VariableFrameRateGame
 			for (int i = 0; i < spawnedBoxes.size(); i++) {
 				PhysicsObject bp = spawnedBoxPhysics.get(i);
 				HashSet<PhysicsObject> hits = bp.getNewlyCollidedSet();
-				for (int h = 0; h < HOUSE_COUNT; h++) {
-					if (hits.contains(housePhysics[h])) {
-						toRemove.add(i);
-						score++;
-						//play the point sound at the box's collision position
-						pointSound.setLocation(spawnedBoxes.get(i).getWorldLocation());
-						pointSound.play();
-						break;
-					}
+				if (activeHouse >= 0 && hits.contains(housePhysics[activeHouse])) {
+					toRemove.add(i);
+					score++;
+					//play the point sound at the box's collision position
+					pointSound.setLocation(spawnedBoxes.get(i).getWorldLocation());
+					pointSound.play();
+					pickNewActiveHouse();
+				}
+			}
+
+			//check if player avatar is touching the boxpile to refill boxes
+			if (boxpilePhysics != null) {
+				Vector3f dolLoc2 = dol.getWorldLocation();
+				Vector3f pileLoc = boxpile.getWorldLocation();
+				float dx = Math.abs(dolLoc2.x - pileLoc.x);
+				float dz = Math.abs(dolLoc2.z - pileLoc.z);
+				if (dx < 5.0f && dz < 5.0f) {
+					boxesOnHand = 3;
 				}
 			}
 			for (int i = toRemove.size() - 1; i >= 0; i--) {
@@ -470,12 +585,12 @@ public class MyGame extends VariableFrameRateGame
 		//tick chopper NPC
 		updateChopper(elapsTime);
 
-		// update 3D audio each frame
+		//update 3D audio each frame
 		copterSound.setLocation(chopper.getWorldLocation());
 		setEarParameters();
 
 		updateMainHUD();
-		updateOverheadHUD();
+		updateHUD2();
 	}
 
 	 //chopper action, move slowly towards nearest player aftet game starts
@@ -512,9 +627,8 @@ public class MyGame extends VariableFrameRateGame
 		float angle = (float) Math.atan2(toTarget.x, toTarget.z);
 		chopper.setLocalRotation(new Matrix4f().rotationY(angle));
 
-		// Check if chopper has reached the player — trigger game over if close enough.
-		// Adjust CHOPPER_TOUCH_RADIUS to make the hitbox larger or smaller.
-		final float CHOPPER_TOUCH_RADIUS = 5.0f; // <-- tweak this for hit detection size
+		//check if chopper has reached the player, trigger game over if close enough.
+		final float CHOPPER_TOUCH_RADIUS = 5.0f; 
 		if (chopper.getWorldLocation().distance(dol.getWorldLocation()) < CHOPPER_TOUCH_RADIUS) {
 			gameOver = true;
 			statusMsg = "GAME OVER — caught by the evil dolphin!";
@@ -554,23 +668,16 @@ public class MyGame extends VariableFrameRateGame
 			hudDebugPrinted = true;
 		}
 
-		// Show a prompt before the game starts; switch to score once running.
+		//show a prompt before the game starts; switch to score once running.
 		String hudMsg = !gameStart ? "Press ENTER or A button to start" 
 					: (score >= 5 ? "You Win!" : statusMsg);
 		(engine.getHUDmanager()).setHUD1(hudMsg, new Vector3f(1,1,0), 15, 15);
 	}
 
-	private void updateOverheadHUD()
+	private void updateHUD2()
 	{
-		Viewport topVp = engine.getRenderSystem().getViewport("RIGHT");
-		Vector3f pos   = dol.getWorldLocation();
-
-		String posText = String.format("X: %.1f  Y: %.1f  Z: %.1f", pos.x, pos.y, pos.z);
-
-		int hudX = (int) topVp.getActualLeft()   + 10;
-		int hudY = (int) topVp.getActualBottom() + 10;
-
-		(engine.getHUDmanager()).setHUD2(posText, new Vector3f(0,1,0), hudX, hudY);
+		String boxMsg = gameStart ? "Boxes: " + boxesOnHand + " / 3" : "";
+		(engine.getHUDmanager()).setHUD2(boxMsg, new Vector3f(1,1,1), 15, 40);
 	}
 
 	private void updateOverheadCamera()
@@ -780,6 +887,7 @@ public class MyGame extends VariableFrameRateGame
 		@Override
 		public void performAction(float time, Event e) {
 			gameStart = true;
+			pickNewActiveHouse();
 			System.out.println("Game has started!");
 			if (isConnected && gm.getGhostCount() > 0) {
 				twoPlayer = true;
@@ -796,6 +904,7 @@ public class MyGame extends VariableFrameRateGame
 		@Override
 		public void performAction(float time, Event e) {
 			if (!gameStart) return;
+			if (boxesOnHand <= 0) return; // can't drop what you don't have
 			Vector3f pos  = dol.getWorldLocation();
 			Vector3f fwd  = new Vector3f(dol.getWorldForwardVector()).normalize();
 			Vector3f spawnPos = new Vector3f(pos).add(new Vector3f(fwd).mul(3.5f));
@@ -815,6 +924,16 @@ public class MyGame extends VariableFrameRateGame
 
 			spawnedBoxes.add(box);
 			spawnedBoxPhysics.add(bp);
+			boxesOnHand--;
+		}
+	}
+
+	private class SinkRiseAction extends AbstractInputAction {
+		@Override
+		public void performAction(float time, Event e) {
+			if (!gameStart || isTransitioning) return;
+			isOnGround      = !isOnGround;
+			isTransitioning = true;
 		}
 	}
 
@@ -941,6 +1060,11 @@ public class MyGame extends VariableFrameRateGame
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 		im.associateActionWithAllKeyboards(
+			net.java.games.input.Component.Identifier.Key.R,
+			new SinkRiseAction(),
+			InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
+
+		im.associateActionWithAllKeyboards(
 			net.java.games.input.Component.Identifier.Key.S,
 			new BwdAction(),
 			InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
@@ -978,6 +1102,11 @@ public class MyGame extends VariableFrameRateGame
 		im.associateActionWithAllGamepads(
     		net.java.games.input.Component.Identifier.Button._2,  //X button
     		new SpawnBoxAction(),
+    		InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
+
+		im.associateActionWithAllGamepads(
+    		net.java.games.input.Component.Identifier.Button._1,  //B button
+    		new SinkRiseAction(),
     		InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
 	}
 
