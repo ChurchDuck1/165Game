@@ -1,6 +1,7 @@
 package packageDelivery;
 
 import tage.*;
+
 import org.joml.*;
 import java.io.IOException;
 import java.util.*;
@@ -20,16 +21,12 @@ public class GhostManager {
 		ObjShape s;
 		TextureImage t;
 		
-		if (avatar == 1) { // witch
-			s = game.getWitchShape();
-			t = game.getWitchTexture();
-		} else if (avatar == 0) { //dolphin
-			s = game.getDolphinShape();
-			t = game.getDolphinTexture();
+		s = game.getWitchShape();
+
+		if (avatar == 1) {
+			t = game.getWitchTexture();      // witchTexB
 		} else {
-			System.out.println("WARNING: unknown avatar type " + avatar + " for ghost " + id + ", defaulting to dolphin");
-			s = game.getDolphinShape();
-			t = game.getDolphinTexture();
+			t = game.getDolphinTexture();    // witchTexA, but still using witch shape
 		}
 
 		GhostAvatar newAvatar = new GhostAvatar(
@@ -99,16 +96,12 @@ public class GhostManager {
 				ObjShape s;
 				TextureImage t;
 
-				if (avatar == 1) { // witch
-					s = game.getWitchShape();
-					t = game.getWitchTexture();
-				} else if (avatar == 0) { // dolphin
-					s = game.getDolphinShape();
-					t = game.getDolphinTexture();
+				s = game.getWitchShape();
+
+				if (avatar == 1) {
+					t = game.getWitchTexture();      // witchTexB
 				} else {
-					System.out.println("WARNING: unknown avatar type " + avatar + " for ghost " + id + ", defaulting to dolphin");
-					s = game.getDolphinShape();
-					t = game.getDolphinTexture();
+					t = game.getDolphinTexture();    // witchTexA
 				}
 
 				ghostAvatar.setShape(s);
