@@ -34,9 +34,9 @@ public class GhostAvatar extends GameObject
 		broom.setLocalTranslation(new Matrix4f().translation(0.00f, -2.40f, -2.20f));
 
 		Matrix4f broomRot = new Matrix4f()
-			.rotationY((float)Math.toRadians(0.0f))
-			.rotateX((float)Math.toRadians(78.0f))
-			.rotateZ((float)Math.toRadians(0.0f));
+			.rotationY((float)java.lang.Math.toRadians(0.0f))
+			.rotateX((float)java.lang.Math.toRadians(78.0f))
+			.rotateZ((float)java.lang.Math.toRadians(0.0f));
 
 		broom.setLocalRotation(broomRot);
 		broom.setLocalScale(new Matrix4f().scaling(0.50f));

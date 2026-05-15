@@ -45,7 +45,7 @@ public class GhostManager {
 		newAvatar.setLocalScale(new Matrix4f().scaling(WITCH_SCALE));
 
 		newAvatar.getRenderStates().setModelOrientationCorrection(
-			new Matrix4f().rotationY((float)Math.toRadians(180.0f))
+			new Matrix4f().rotationY((float)java.lang.Math.toRadians(180.0f))
 		);
 
 		ghostAvatars.add(newAvatar);
@@ -116,7 +116,7 @@ public class GhostManager {
 				ghostAvatar.setLocalScale(new Matrix4f().scaling(WITCH_SCALE));
 
 				ghostAvatar.getRenderStates().setModelOrientationCorrection(
-					new Matrix4f().rotationY((float)Math.toRadians(180.0f))
+					new Matrix4f().rotationY((float)java.lang.Math.toRadians(180.0f))
 				);
 			}
 
