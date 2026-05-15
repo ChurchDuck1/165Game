@@ -239,7 +239,7 @@ public class MyGame extends VariableFrameRateGame
 		ghostTx       = new TextureImage("Dolphin_HighPolyUV.jpg");
 		chopperTx  = new TextureImage("DolphinEvil.png"); 
 		boxTx     = new TextureImage("sand1.jpg");
-		//boxpileTx = new TextureImage("boxpile_texture.png");
+		boxpileTx = new TextureImage("boxpile_texture.png");
 		arrowTx   = new TextureImage("blue.PNG");
 		broomTx = new TextureImage("broomTex.png");
 	}
@@ -309,13 +309,13 @@ public class MyGame extends VariableFrameRateGame
 
 		//warehouse at centre of grid
 		warehouse = new GameObject(GameObject.root(), warehouseS, houseTx);
-		warehouse.setLocalTranslation(new Matrix4f().translation(0f, -15f, 0f));
-		warehouse.setLocalScale(new Matrix4f().scaling(3f));
+		warehouse.setLocalTranslation(new Matrix4f().translation(0f, -16f, 0f));
+		warehouse.setLocalScale(new Matrix4f().scaling(5f));
 
 		//boxpile at ground level centre
 		boxpile = new GameObject(GameObject.root(), boxpileS, boxpileTx);
 		boxpile.setLocalTranslation(new Matrix4f().translation(0f, -15f, 0f));
-		boxpile.setLocalScale(new Matrix4f().scaling(1f));
+		boxpile.setLocalScale(new Matrix4f().scaling(1.5f));
 
 		//broom held/ridden by witch avatar
 		broom = new GameObject(dol, broomS, broomTx);
