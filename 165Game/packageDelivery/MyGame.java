@@ -1189,8 +1189,8 @@ public class MyGame extends VariableFrameRateGame
 	public ObjShape getGhostShape() { return ghostS; }
 	public TextureImage getGhostTexture() { return ghostTx; }
 
-	public ObjShape getDolphinShape() { return witchS; }
-	public TextureImage getDolphinTexture() { return witchTexA; }
+	public ObjShape getDolphinShape() { return ghostS; }
+	public TextureImage getDolphinTexture() { return ghostTx; }
 	public ObjShape getWitchShape() { return witchS; }
 
 	public TextureImage getWitchTexture() {

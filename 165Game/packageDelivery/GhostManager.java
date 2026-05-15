@@ -23,7 +23,11 @@ public class GhostManager {
 		if (avatar == 1) { //witch
 			s = game.getWitchShape();
 			t = game.getWitchTexture();
-		} else { //dolphin
+		} else if (avatar == 0) { //dolphin
+			s = game.getDolphinShape();
+			t = game.getDolphinTexture();
+		} else {
+			System.out.println("WARNING: unknown avatar type " + avatar + " for ghost " + id + ", defaulting to dolphin");
 			s = game.getDolphinShape();
 			t = game.getDolphinTexture();
 		}
@@ -85,7 +89,11 @@ public class GhostManager {
 				if (avatar == 1) { // witch
 					s = game.getWitchShape();
 					t = game.getWitchTexture();
-				} else { // dolphin
+				} else if (avatar == 0) { // dolphin
+					s = game.getDolphinShape();
+					t = game.getDolphinTexture();
+				} else {
+					System.out.println("WARNING: unknown avatar type " + avatar + " for ghost " + id + ", defaulting to dolphin");
 					s = game.getDolphinShape();
 					t = game.getDolphinTexture();
 				}

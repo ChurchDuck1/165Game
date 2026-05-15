@@ -214,8 +214,8 @@ public class ProtocolClient extends GameConnectionClient {
 				if(messageTokens.length > 1) {
 					UUID requestorID = UUID.fromString(messageTokens[1]);
 					if (requestorID.compareTo(id) != 0) {
-						System.out.println("Received wsds request from " + requestorID + ", sending CREATE as details response");
-						sendCreateMessage(game.getPlayerPosition());
+						System.out.println("Received wsds request from " + requestorID + ", sending details");
+						sendDetailsForMessage(requestorID);
 					}
 				}
 			}
