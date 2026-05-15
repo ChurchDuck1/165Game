@@ -22,6 +22,9 @@ import java.util.HashSet;
 import org.joml.*;
 import tage.physics.PhysicsEngine;
 import tage.physics.PhysicsObject;
+import tage.rml.Matrix4f;
+import tage.rml.Quaternionf;
+import tage.rml.Vector3f;
 import tage.nodeControllers.*;
 import tage.NodeController;
 import net.java.games.input.Event;
@@ -1192,9 +1195,7 @@ public class MyGame extends VariableFrameRateGame
 	public ObjShape getDolphinShape() { return ghostS; }
 	public TextureImage getDolphinTexture() { return ghostTx; }
 	public ObjShape getWitchShape() { return witchS; }
-
-	public TextureImage getWitchTexture() {
-		return (selectedAvatar == 1) ? witchTexB : witchTexA; }
+	public TextureImage getWitchTexture() { return witchTexB;}
 
 	public GhostManager getGhostManager() { return gm; }
 	public Engine getEngine() { return engine; }
@@ -1202,6 +1203,10 @@ public class MyGame extends VariableFrameRateGame
 	public int getSelectedAvatar() { return selectedAvatar; }
 	public boolean isTwoPlayer() { return twoPlayer; }
 	public int getGhostCount() { return gm.getGhostCount(); }
+
+	public ObjShape getBroomShape() { return broomS; }
+
+	public TextureImage getBroomTexture() { return broomTx; }
 
 	@Override
 	public void shutdown() {
