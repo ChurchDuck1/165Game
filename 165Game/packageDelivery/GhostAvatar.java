@@ -42,6 +42,15 @@ public class GhostAvatar extends GameObject
 		broom.setLocalScale(new Matrix4f().scaling(0.50f));
 	}
 
+	public void removeFromScene(Engine engine) {
+		if (broom != null) {
+			engine.getSceneGraph().removeGameObject(broom);
+			broom = null;
+		}
+
+		engine.getSceneGraph().removeGameObject(this);
+	}
+
 	public UUID getID() {
 		return id;
 	}

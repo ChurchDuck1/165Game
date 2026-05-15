@@ -238,7 +238,7 @@ public class MyGame extends VariableFrameRateGame
 		mountainTx    = new TextureImage("rock.PNG");  
 		ghostTx       = new TextureImage("Dolphin_HighPolyUV.jpg");
 		chopperTx  = new TextureImage("DolphinEvil.png"); 
-		boxTx     = new TextureImage("makemake.jpg");
+		boxTx     = new TextureImage("sand1.jpg");
 		//boxpileTx = new TextureImage("boxpile_texture.png");
 		arrowTx   = new TextureImage("blue.PNG");
 		broomTx = new TextureImage("broomTex.png");

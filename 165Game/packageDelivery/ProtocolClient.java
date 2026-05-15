@@ -220,10 +220,10 @@ public class ProtocolClient extends GameConnectionClient {
 							ghostManager.updateGhostAvatar(ghostID, ghostPosition, avatar);
 						}
 						else {
-							ghostManager.createGhost(ghostID, ghostPosition, avatar);
+							System.out.println("Ignoring move for unknown ghost: " + ghostID);
 						}
 					}
-					catch (NumberFormatException | IOException e) {
+					catch (NumberFormatException e) {
 						System.out.println("error parsing move message");
 					}
 				}

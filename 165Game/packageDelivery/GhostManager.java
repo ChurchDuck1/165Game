@@ -3,7 +3,6 @@ package packageDelivery;
 import tage.*;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-
 import java.io.IOException;
 import java.util.*;
 
@@ -46,10 +45,20 @@ public class GhostManager {
 		GhostAvatar ghostAv = findAvatar(id);
 
 		if (ghostAv != null) {
-			game.getEngine().getSceneGraph().removeGameObject(ghostAv);
+			System.out.println("Removing ghost avatar: " + id);
+
+			ghostAv.removeFromScene(game.getEngine());
 			ghostAvatars.remove(ghostAv);
 		} else {
-			System.out.println("unable to find ghost in list");
+			System.out.println("unable to find ghost in list for bye id: " + id);
+			printGhostIDs();
+		}
+	}
+
+	private void printGhostIDs() {
+		System.out.println("Current ghost IDs:");
+		for (GhostAvatar ghost : ghostAvatars) {
+			System.out.println(" - " + ghost.getID());
 		}
 	}
 
