@@ -66,12 +66,14 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 
 			//case where server receives a MOVE message
 			if(messageTokens[0].compareTo("move") == 0) {
-				if(messageTokens.length >= 5) {
+				if(messageTokens.length >= 6) {
 					try {
 						UUID clientID = UUID.fromString(messageTokens[1]);
 						String[] pos = {messageTokens[2], messageTokens[3], messageTokens[4]};
-						
-						sendMoveMessages(clientID, pos);
+						int avatar = Integer.parseInt(messageTokens[5]);
+
+						clientAvatars.put(clientID, avatar);
+						sendMoveMessages(clientID, pos, avatar);
 					}
 					catch (Exception e) {
 						e.printStackTrace();
@@ -157,12 +159,13 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 		}
 	}
 
-	private void sendMoveMessages(UUID clientID, String[] position) {
+	private void sendMoveMessages(UUID clientID, String[] position, int avatar) {
 		try {
 			String message = new String("move," + clientID.toString());
 			message += "," + position[0];
 			message += "," + position[1];
 			message += "," + position[2];
+			message += "," + avatar;
 
 			forwardPacketToAll(message, clientID);
 		}
@@ -196,6 +199,7 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 	private void sendDetailsForMessage(UUID remoteID, UUID senderID, String[] position) {
 		try {
 			String message = new String("dsfr," + senderID.toString());
+			message += "," + remoteID.toString();
 			message += "," + position[0];
 			message += "," + position[1];
 			message += "," + position[2];
@@ -207,7 +211,6 @@ public class GameServerUDP extends GameConnectionServer<UUID>
 			e.printStackTrace();
 		}
 	}
-
 	public static void main(String[] args) {
     	try {
         	int preferredPort = 5000;

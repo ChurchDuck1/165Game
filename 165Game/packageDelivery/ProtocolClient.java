@@ -108,6 +108,7 @@ public class ProtocolClient extends GameConnectionClient {
 					if(messageTokens[1].compareTo("success") == 0) {
 						game.setIsConnected(true);
 						sendCreateMessage(game.getPlayerPosition());
+						sendWantsDetailsMessage();
 					}
 					else if(messageTokens[1].compareTo("failure") == 0) {
 						game.setIsConnected(false);
@@ -115,7 +116,6 @@ public class ProtocolClient extends GameConnectionClient {
 					}
 				}
 			}
-
 			//handle incoming create message from other players
 			if(messageTokens[0].compareTo("create") == 0) {
 				if(messageTokens.length >= 6) {

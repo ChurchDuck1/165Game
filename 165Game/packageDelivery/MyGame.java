@@ -1234,5 +1234,6 @@ public class MyGame extends VariableFrameRateGame
 		}
 
 		super.shutdown();
+		System.exit(0);
 	}
 }
