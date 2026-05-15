@@ -51,6 +51,7 @@ public class ProtocolClient extends GameConnectionClient {
 		try {
 			String message = new String("move," + id.toString());
 			message += "," + pos.x + "," + pos.y + "," + pos.z;
+			message += "," + game.getSelectedAvatar();
 			sendPacket(message);
 		}
 		catch (IOException e) {
@@ -75,6 +76,7 @@ public class ProtocolClient extends GameConnectionClient {
 			Vector3f pos = game.getPlayerPosition();
 			String message = new String("dsfr," + id.toString() + "," + remId.toString());
 			message += "," + pos.x + "," + pos.y + "," + pos.z;
+			message += "," + game.getSelectedAvatar();
 			sendPacket(message);
 		}
 		catch (IOException e) {
@@ -148,21 +150,27 @@ public class ProtocolClient extends GameConnectionClient {
 
 			//handle dsfr (details for) message
 			if(messageTokens[0].compareTo("dsfr") == 0) {
-				if(messageTokens.length >= 6) {
+				if(messageTokens.length >= 7) {
 					try {
 						UUID ghostID = UUID.fromString(messageTokens[1]);
-						
-						//don't create a ghost for ourself
+						UUID targetID = UUID.fromString(messageTokens[2]);
+
+						// only process details meant for us
+						if(targetID.compareTo(id) != 0) {
+							return;
+						}
+
+						// don't create a ghost for ourself
 						if(ghostID.compareTo(id) == 0) {
 							return;
 						}
-						
+
 						Vector3f ghostPosition = new Vector3f(
-							Float.parseFloat(messageTokens[2]),
 							Float.parseFloat(messageTokens[3]),
-							Float.parseFloat(messageTokens[4]));
-						
-						int avatar = Integer.parseInt(messageTokens[5]);
+							Float.parseFloat(messageTokens[4]),
+							Float.parseFloat(messageTokens[5]));
+
+						int avatar = Integer.parseInt(messageTokens[6]);
 
 						if (ghostManager.hasGhost(ghostID)) {
 							ghostManager.updateGhostAvatar(ghostID, ghostPosition, avatar);
@@ -193,17 +201,29 @@ public class ProtocolClient extends GameConnectionClient {
 
 			//handle move message to update ghost avatar position
 			if(messageTokens[0].compareTo("move") == 0) {
-				if(messageTokens.length >= 5) {
+				if(messageTokens.length >= 6) {
 					try {
 						UUID ghostID = UUID.fromString(messageTokens[1]);
+
+						if(ghostID.compareTo(id) == 0) {
+							return;
+						}
+
 						Vector3f ghostPosition = new Vector3f(
 							Float.parseFloat(messageTokens[2]),
 							Float.parseFloat(messageTokens[3]),
 							Float.parseFloat(messageTokens[4]));
 
-						ghostManager.updateGhostAvatar(ghostID, ghostPosition);
+						int avatar = Integer.parseInt(messageTokens[5]);
+
+						if (ghostManager.hasGhost(ghostID)) {
+							ghostManager.updateGhostAvatar(ghostID, ghostPosition, avatar);
+						}
+						else {
+							ghostManager.createGhost(ghostID, ghostPosition, avatar);
+						}
 					}
-					catch (NumberFormatException e) {
+					catch (NumberFormatException | IOException e) {
 						System.out.println("error parsing move message");
 					}
 				}

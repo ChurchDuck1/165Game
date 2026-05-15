@@ -1189,10 +1189,28 @@ public class MyGame extends VariableFrameRateGame
 	public ObjShape getGhostShape() { return ghostS; }
 	public TextureImage getGhostTexture() { return ghostTx; }
 
+	// Old names, but these are no longer used for witch ghost texture logic
 	public ObjShape getDolphinShape() { return ghostS; }
 	public TextureImage getDolphinTexture() { return ghostTx; }
-	public ObjShape getWitchShape() { return witchS; }
-	public TextureImage getWitchTexture() { return witchTexB;}
+
+	public ObjShape getWitchShape() { 
+		return witchS; 
+	}
+
+	public TextureImage getWitchTexture() { 
+		return witchTexB;
+	}
+
+	public ObjShape getAvatarShape(int avatar) {
+		return witchS;
+	}
+
+	public TextureImage getAvatarTexture(int avatar) {
+		if (avatar == 1) {
+			return witchTexB;
+		}
+		return witchTexA;
+	}
 
 	public GhostManager getGhostManager() { return gm; }
 	public Engine getEngine() { return engine; }
@@ -1201,14 +1219,20 @@ public class MyGame extends VariableFrameRateGame
 	public boolean isTwoPlayer() { return twoPlayer; }
 	public int getGhostCount() { return gm.getGhostCount(); }
 
-	public ObjShape getBroomShape() { return broomS; }
+	public ObjShape getBroomShape() { 
+		return broomS; 
+	}
 
-	public TextureImage getBroomTexture() { return broomTx; }
+	public TextureImage getBroomTexture() { 
+		return broomTx; 
+	}
 
 	@Override
 	public void shutdown() {
-		super.shutdown();
-		if (protClient != null && isConnected)
+		if (protClient != null && isConnected) {
 			protClient.sendByeMessage();
+		}
+
+		super.shutdown();
 	}
 }
