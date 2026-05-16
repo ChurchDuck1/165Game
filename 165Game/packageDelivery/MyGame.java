@@ -70,7 +70,7 @@ public class MyGame extends VariableFrameRateGame
 	private ObjShape houseS;
 	private static final int HOUSE_COUNT = 12; //4x4 grid with 4 middle slots removed
 	private GameObject[] houses = new GameObject[HOUSE_COUNT];
-	private TextureImage houseTx;
+	private TextureImage houseTx, warehouseTx;
 	//grid settings
 	private static final float GRID_SPACING = 70f; //distance between houses
 	private static final float GRID_OFFSET  = -105f; //position of first column/row
@@ -215,12 +215,12 @@ public class MyGame extends VariableFrameRateGame
 		witchS = new AnimatedShape("witchModel.rkm", "witchModel.rks");
 		witchS.loadAnimation("WALK", "witchWalk.rka");
 		groundS = new TerrainPlane(1000);
-		houseS  = new ImportedModel("house.obj");
+		houseS  = new ImportedModel("houseModel.obj");
 		broomS    = new ImportedModel("broomModel.obj");
 		mountainS = new ImportedModel("mountain.obj");
 		ghostS    = new ImportedModel("dolphinHighPoly.obj");
 		boxS    = new ImportedModel("box.obj");
-		chopperS = new ImportedModel("dolphinHighPoly.obj"); //chopper (aka evil dolphin)
+		chopperS = new ImportedModel("heli.obj"); 
 		warehouseS = new ImportedModel("warehouse.obj");
 		boxpileS   = new ImportedModel("boxpile.obj");
 		arrowS     = new ImportedModel("arrow.obj");
@@ -231,13 +231,13 @@ public class MyGame extends VariableFrameRateGame
 	{
 		witchTexA = new TextureImage("witchTexA.png");
 		witchTexB = new TextureImage("witchTexB.png");
-
+		warehouseTx = new TextureImage("warehouse_texture.png");
 		groundTx      = new TextureImage("roads.PNG");
 		groundHeightMap = new TextureImage("hills.jpg");
-		houseTx       = new TextureImage("brick1.jpg"); //tbd
+		houseTx       = new TextureImage("houseTex.png"); 
 		mountainTx    = new TextureImage("rock.PNG");  
 		ghostTx       = new TextureImage("Dolphin_HighPolyUV.jpg");
-		chopperTx  = new TextureImage("DolphinEvil.png"); 
+		chopperTx  = new TextureImage("heliTex.png"); 
 		boxTx     = new TextureImage("sand1.jpg");
 		boxpileTx = new TextureImage("boxpile_texture.png");
 		arrowTx   = new TextureImage("blue.PNG");
@@ -301,14 +301,14 @@ public class MyGame extends VariableFrameRateGame
 				float x = GRID_OFFSET + col * GRID_SPACING;
 				float z = GRID_OFFSET + row * GRID_SPACING;
 				houses[idx] = new GameObject(GameObject.root(), houseS, houseTx);
-				houses[idx].setLocalTranslation(new Matrix4f().translation(x, -16f, z));
-				houses[idx].setLocalScale(new Matrix4f().scaling(0.02f));
+				houses[idx].setLocalTranslation(new Matrix4f().translation(x, -15.5f, z));
+				houses[idx].setLocalScale(new Matrix4f().scaling(2f));
 				idx++;
 			}
 		}
 
 		//warehouse at centre of grid
-		warehouse = new GameObject(GameObject.root(), warehouseS, houseTx);
+		warehouse = new GameObject(GameObject.root(), warehouseS, warehouseTx);
 		warehouse.setLocalTranslation(new Matrix4f().translation(0f, -16f, 0f));
 		warehouse.setLocalScale(new Matrix4f().scaling(5f));
 
@@ -347,7 +347,7 @@ public class MyGame extends VariableFrameRateGame
 		//chopper NPC — spawns away from origin, hovering above terrain
 		chopper = new GameObject(GameObject.root(), chopperS, chopperTx);
 		chopper.setLocalTranslation(new Matrix4f().translation(30f, 1, 30f));
-		chopper.setLocalScale(new Matrix4f().scaling(3.0f));
+		chopper.setLocalScale(new Matrix4f().scaling(2.0f));
 
 		//arrow indicator — parked off-screen until game start; pickNewActiveHouse() moves it
 		arrow = new GameObject(GameObject.root(), arrowS, arrowTx);
@@ -661,7 +661,7 @@ public class MyGame extends VariableFrameRateGame
 		final float CHOPPER_TOUCH_RADIUS = 5.0f; 
 		if (chopper.getWorldLocation().distance(dol.getWorldLocation()) < CHOPPER_TOUCH_RADIUS) {
 			gameOver = true;
-			statusMsg = "GAME OVER — caught by the evil dolphin!";
+			statusMsg = "GAME OVER — caught by the helicopter!";
 		}
 	}
 
